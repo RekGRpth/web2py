@@ -5,6 +5,7 @@
 
 import sys
 import logging
+from gluon._compat import to_native, to_bytes
 try:
     import ldap
     import ldap.filter
@@ -399,14 +400,14 @@ def ldap_auth(server='ldap',
                 logger.info('[%s] Manage user data' % str(username))
                 try:
                     if user_firstname_part is not None:
-                        store_user_firstname = result[user_firstname_attrib][0].split(' ', 1)[user_firstname_part]
+                        store_user_firstname = result[user_firstname_attrib][0].split(to_bytes(' '), 1)[user_firstname_part]
                     else:
                         store_user_firstname = result[user_firstname_attrib][0]
                 except KeyError as e:
                     store_user_firstname = None
                 try:
                     if user_lastname_part is not None:
-                        store_user_lastname = result[user_lastname_attrib][0].split(' ', 1)[user_lastname_part]
+                        store_user_lastname = result[user_lastname_attrib][0].split(to_bytes(' '), 1)[user_lastname_part]
                     else:
                         store_user_lastname = result[user_lastname_attrib][0]
                 except KeyError as e:
