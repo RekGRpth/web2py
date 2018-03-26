@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import ldap
 import os
 import sys
 from multiprocessing import freeze_support
