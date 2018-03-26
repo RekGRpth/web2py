@@ -947,10 +947,11 @@ class Scheduler(MetaScheduler):
                 db.commit()
                 logger.debug('Tasks assigned...')
                 break
-            except:
+            except Exception as exception:
                 self.w_stats.errors += 1
                 db.rollback()
                 logger.error('TICKER: error assigning tasks (%s)', x)
+                logger.exception(exception)
                 x += 1
                 time.sleep(0.5)
 
@@ -968,10 +969,11 @@ class Scheduler(MetaScheduler):
                 rtn = self.pop_task(db)
                 return rtn
                 break
-            except:
+            except Exception as exception:
                 self.w_stats.errors += 1
                 db.rollback()
                 logger.error('    error popping tasks')
+                logger.exception(exception)
                 x += 1
                 time.sleep(0.5)
 
@@ -1071,10 +1073,11 @@ class Scheduler(MetaScheduler):
                 self.report_task(task, task_report)
                 db.commit()
                 break
-            except:
+            except Exception as exception:
                 self.w_stats.errors += 1
                 db.rollback()
                 logger.error('    error storing result')
+                logger.exception(exception)
                 time.sleep(0.5)
 
     def report_task(self, task, task_report):
@@ -1227,15 +1230,18 @@ class Scheduler(MetaScheduler):
                     dead_workers.delete()
                     try:
                         self.is_a_ticker = self.being_a_ticker()
-                    except:
+                    except Exception as exception:
                         logger.error('Error coordinating TICKER')
+                        logger.exception(exception)
                     if self.w_stats.status == ACTIVE:
                         self.do_assign_tasks = True
-                except:
+                except Exception as exception:
                     logger.error('Error cleaning up')
+                    logger.exception(exception)
             db.commit()
-        except:
+        except Exception as exception:
             logger.error('Error retrieving status')
+            logger.exception(exception)
             db.rollback()
         self.adj_hibernation()
         self.sleep()
