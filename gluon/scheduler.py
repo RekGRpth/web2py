@@ -1162,6 +1162,8 @@ class Scheduler(MetaScheduler):
             logger.debug('thread building own DAL object')
             self.db_thread = DAL(
                 self.db._uri, folder=self.db._adapter.folder, decode_credentials=True)
+            self.db_thread._request_tenant = self.db._request_tenant
+            self.db_thread._common_fields = list(self.db._common_fields)
             self.define_tables(self.db_thread, migrate=False)
         try:
             db = self.db_thread
