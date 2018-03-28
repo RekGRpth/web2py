@@ -80,7 +80,8 @@ if 'WEB2PY_PATH' not in os.environ:
 
 IDENTIFIER = "%s#%s" % (socket.gethostname(), os.getpid())
 
-logger = logging.getLogger('web2py.scheduler.%s' % IDENTIFIER)
+#logger = logging.getLogger('web2py.scheduler.%s' % IDENTIFIER)
+logger = logging.getLogger('web2py.scheduler')
 
 QUEUED = 'QUEUED'
 ASSIGNED = 'ASSIGNED'
