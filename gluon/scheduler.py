@@ -479,7 +479,7 @@ def executor(queue, task, out):
             # form 'app/controller'
             (a, c, f) = parse_path_info(task.app)
             _env = env(a=a, c=c, import_models=True,
-                       extra_request={'is_scheduler': True})
+                       extra_request={'is_scheduler': True, 'is_task': True})
             logging.getLogger().setLevel(level)
             f = task.function
             functions = current._scheduler.tasks
