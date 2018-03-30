@@ -2899,7 +2899,7 @@ class SQLFORM(FORM):
             if dbset._db._adapter.dbengine == 'google:datastore' and nrows >= 1000:
                 message = T('at least %(nrows)s records found') % dict(nrows=nrows)
             else:
-                message = T('%(nrows)s records found') % dict(nrows=nrows)
+                message = T('%s records found', nrows)
         console.append(DIV(message or '', _class='web2py_counter'))
 
         paginator = UL()
