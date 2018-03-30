@@ -114,8 +114,17 @@ def define_field(conn, table, field, pks):
         f['type'] = "'integer'"
     elif field['data_type'] in ('double precision', 'real'):
         f['type'] = "'double'"
-    elif field['data_type'] in ('timestamp', 'timestamp without time zone'):
+    elif field['data_type'] in ('timestamp', 'timestamp without time zone', 'timestamp with time zone'):
         f['type'] = "'datetime'"
+    elif field['data_type'] in ('oid', ):
+        f['type'] = "'blob'"
+    elif field['data_type'] in ('inet', 'cidr'):
+        f['type'] = "'string'"
+    elif field['data_type'] in ('uuid', ):
+        f['type'] = "'string'"
+        f['length'] = 36
+    elif field['data_type'] in ('json', 'jsonb'):
+        f['type'] = "'json'"
     elif field['data_type'] in ('date', ):
         f['type'] = "'date'"
     elif field['data_type'] in ('time', 'time without time zone'):
@@ -144,7 +153,7 @@ def define_field(conn, table, field, pks):
             f['default'] = str(d)
     except (ValueError, SyntaxError):
         pass
-    except Exception, e:
+    except Exception as e:
         raise RuntimeError(
             "Default unsupported '%s'" % field['column_default'])
 
@@ -242,7 +251,7 @@ def define_table(conn, table):
     "Output single table definition"
     fields = get_fields(conn, table)
     pks = primarykeys(conn, table)
-    print "db.define_table('%s'," % (table, )
+    print( "db.define_table('%s'," % (table, ))
     for field in fields:
         fname = field['column_name']
         fdef = define_field(conn, table, field, pks)
@@ -250,29 +259,29 @@ def define_table(conn, table):
             fdef['unique'] = "True"
         if fdef['type'] == "'id'" and fname in pks:
             pks.pop(pks.index(fname))
-        print "    Field('%s', %s)," % (fname,
+        print("    Field('%s', %s)," % (fname,
                                         ', '.join(["%s=%s" % (k, fdef[k]) for k in KWARGS
-                                                   if k in fdef and fdef[k]]))
+                                                   if k in fdef and fdef[k]])))
     if pks:
-        print "    primarykey=[%s]," % ", ".join(["'%s'" % pk for pk in pks])
-    print     "    migrate=migrate)"
-    print
+        print( "    primarykey=[%s]," % ", ".join(["'%s'" % pk for pk in pks]))
+    print(     "    migrate=migrate)")
+    print()
 
 
 def define_db(conn, db, host, port, user, passwd):
     "Output database definition (model)"
     dal = 'db = DAL("postgres://%s:%s@%s:%s/%s", pool_size=10)'
-    print dal % (user, passwd, host, port, db)
-    print
-    print "migrate = False"
-    print
+    print(dal % (user, passwd, host, port, db))
+    print()
+    print( "migrate = False")
+    print()
     for table in get_tables(conn):
         define_table(conn, table)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 6:
-        print HELP
+        print(HELP)
     else:
         # Parse arguments from command line:
         db, host, port, user, passwd = sys.argv[1:6]
