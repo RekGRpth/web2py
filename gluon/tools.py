@@ -2525,7 +2525,7 @@ class Auth(AuthAPI):
                     TAG['cas:authenticationSuccess'](
                         TAG['cas:user'](username),
                         TAG['cas:attributes'](
-                            *[TAG['cas:' + field.name](user[field.name])
+                            *[TAG['cas:' + field.name](json.dumps(user[field.name]) if field.type == 'json' else user[field.name])
                               for field in self.table_user()
                               if field.readable])))
             else:  # assume version 2
@@ -2533,7 +2533,7 @@ class Auth(AuthAPI):
                 message = build_response(
                     TAG['cas:authenticationSuccess'](
                         TAG['cas:user'](username),
-                        *[TAG['cas:' + field.name](user[field.name])
+                        *[TAG['cas:' + field.name](json.dumps(user[field.name]) if field.type == 'json' else user[field.name])
                           for field in self.table_user()
                           if field.readable]))
         else:
