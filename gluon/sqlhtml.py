@@ -3083,7 +3083,7 @@ class SQLFORM(FORM):
             htmltable.append(tbody)
             htmltable = DIV(
                 htmltable, _class='web2py_htmltable',
-                _style='width:100%;overflow-x:auto;-ms-overflow-x:scroll')
+                _style='width:100%')
             if selectable:
                 if not callable(selectable):
                     # now expect that selectable and related parameters are
