@@ -2093,7 +2093,12 @@ class SQLFORM(FORM):
             'double': ['=', '!=', '<', '>', '<=', '>='],
             'id': ['=', '!=', '<', '>', '<=', '>=', 'in', 'not in'],
             'reference': ['=', '!='],
-            'boolean': ['=', '!=']}
+            'boolean': ['=', '!='],
+            'list:string': ['contains'],
+            'list:integer': ['contains'],
+            'list:reference': ['contains'],
+            'json': ['contains'],
+        }
         if fields[0]._db._adapter.dbengine == 'google:datastore':
             search_options['string'] = ['=', '!=', '<', '>', '<=', '>=']
             search_options['text'] = ['=', '!=', '<', '>', '<=', '>=']

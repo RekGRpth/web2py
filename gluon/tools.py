@@ -4647,7 +4647,7 @@ class Crud(object):  # pragma: no cover
                     return lambda row: str(row[field.name][format]).endswith(value)
             elif op == 'contains':
                 if not refsearch:
-                    return field.like('%' + value + '%')
+                    return field.cast('text').like('%' + value + '%')
                 else:
                     return lambda row: value in row[field.name][format]
         except:
