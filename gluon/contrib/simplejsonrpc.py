@@ -115,7 +115,7 @@ class ServerProxy(object):
         data = {'id': request_id, 'method': method, 'params': args or vars, }
         if self.version:
             data['jsonrpc'] = self.version #mandatory key/value for jsonrpc2 validation else err -32600
-        request = json.dumps(data)
+        request = json.dumps(data, ensure_ascii=False)
 
         # make HTTP request (retry if connection is lost)
         response = self.__transport.request(

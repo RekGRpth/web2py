@@ -183,8 +183,8 @@ class RScheduler(Scheduler):
                     status=ACTIVE, worker_name=self.worker_name,
                     first_heartbeat=self.dt2str(now),
                     last_heartbeat=self.dt2str(now),
-                    group_names=dumps(self.group_names), is_ticker=False,
-                    worker_stats=dumps(self.w_stats))
+                    group_names=dumps(self.group_names, ensure_ascii=False), is_ticker=False,
+                    worker_stats=dumps(self.w_stats, ensure_ascii=False))
             )
             r_server.sadd(status_keyset, status_key)
             if not self.w_stats.status == POLLING:
@@ -199,7 +199,7 @@ class RScheduler(Scheduler):
                 r_server.hmset(
                     status_key,
                     dict(last_heartbeat=self.dt2str(now),
-                         worker_stats=dumps(self.w_stats))
+                         worker_stats=dumps(self.w_stats, ensure_ascii=False))
                 )
             elif mybackedstatus == TERMINATE:
                 self.w_stats.status = TERMINATE
@@ -218,7 +218,7 @@ class RScheduler(Scheduler):
                     status_key,
                     dict(
                         last_heartbeat=self.dt2str(now), status=ACTIVE,
-                        worker_stats=dumps(self.w_stats)
+                        worker_stats=dumps(self.w_stats, ensure_ascii=False)
                     )
                 )
                 # newroutine
@@ -710,8 +710,8 @@ class RScheduler(Scheduler):
         """
         if hasattr(function, '__name__'):
             function = function.__name__
-        targs = 'args' in kwargs and kwargs.pop('args') or dumps(pargs)
-        tvars = 'vars' in kwargs and kwargs.pop('vars') or dumps(pvars)
+        targs = 'args' in kwargs and kwargs.pop('args') or dumps(pargs, ensure_ascii=False)
+        tvars = 'vars' in kwargs and kwargs.pop('vars') or dumps(pvars, ensure_ascii=False)
         tuuid = 'uuid' in kwargs and kwargs.pop('uuid') or web2py_uuid()
         tname = 'task_name' in kwargs and kwargs.pop('task_name') or function
         immediate = 'immediate' in kwargs and kwargs.pop('immediate') or None

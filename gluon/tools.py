@@ -1248,7 +1248,7 @@ class AuthJWT(object):
         base_header = {'alg': self.algorithm, 'typ': 'JWT'}
         for k, v in iteritems(self.jwt_add_header):
             base_header[k] = v
-        self.cached_b64h = self.jwt_b64e(json.dumps(base_header))
+        self.cached_b64h = self.jwt_b64e(json.dumps(base_header, ensure_ascii=False))
         digestmod_mapping = {
             'HS256': hashlib.sha256,
             'HS384': hashlib.sha384,
@@ -2525,7 +2525,7 @@ class Auth(AuthAPI):
                     TAG['cas:authenticationSuccess'](
                         TAG['cas:user'](username),
                         TAG['cas:attributes'](
-                            *[TAG['cas:' + field.name](json.dumps(user[field.name]) if field.type == 'json' else user[field.name])
+                            *[TAG['cas:' + field.name](json.dumps(user[field.name], ensure_ascii=False) if field.type == 'json' else user[field.name])
                               for field in self.table_user()
                               if field.readable])))
             else:  # assume version 2
@@ -2533,7 +2533,7 @@ class Auth(AuthAPI):
                 message = build_response(
                     TAG['cas:authenticationSuccess'](
                         TAG['cas:user'](username),
-                        *[TAG['cas:' + field.name](json.dumps(user[field.name]) if field.type == 'json' else user[field.name])
+                        *[TAG['cas:' + field.name](json.dumps(user[field.name], ensure_ascii=False) if field.type == 'json' else user[field.name])
                           for field in self.table_user()
                           if field.readable]))
         else:

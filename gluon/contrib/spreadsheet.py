@@ -382,7 +382,7 @@ class Sheet:
                     result["db_callback"] = db_callback
             else:
                 result["message"] = "Sheet.process Error. No db found."
-            return json.dumps(result)
+            return json.dumps(result, ensure_ascii=False)
 
         return jquery
 
@@ -863,7 +863,7 @@ class Sheet:
                     w2p_spreadsheet_update_db);
               });
             }
-            """ % dict(data=json.dumps(self.client),
+            """ % dict(data=json.dumps(self.client, ensure_ascii=False),
                        name=attributes["_class"],
                        url=self.url,
                        update_button=self.update_button))

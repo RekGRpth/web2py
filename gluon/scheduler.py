@@ -499,7 +499,7 @@ def executor(queue, task, out):
             globals().update(_env)
             args = _decode_list(loads(task.args))
             vars = loads(task.vars, object_hook=_decode_dict)
-            result = dumps(_function(*args, **vars))
+            result = dumps(_function(*args, **vars), ensure_ascii=False)
         else:
             # for testing purpose only
             result = eval(task.function)(
@@ -1491,8 +1491,8 @@ class Scheduler(MetaScheduler):
         """
         if hasattr(function, '__name__'):
             function = function.__name__
-        targs = 'args' in kwargs and kwargs.pop('args') or dumps(pargs)
-        tvars = 'vars' in kwargs and kwargs.pop('vars') or dumps(pvars)
+        targs = 'args' in kwargs and kwargs.pop('args') or dumps(pargs, ensure_ascii=False)
+        tvars = 'vars' in kwargs and kwargs.pop('vars') or dumps(pvars, ensure_ascii=False)
         tuuid = 'uuid' in kwargs and kwargs.pop('uuid') or web2py_uuid()
         tname = 'task_name' in kwargs and kwargs.pop('task_name') or function
         immediate = 'immediate' in kwargs and kwargs.pop('immediate') or None
