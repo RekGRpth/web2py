@@ -4788,11 +4788,13 @@ regex_geocode = \
 def geocode(address):
     try:
         a = urllib_quote(address)
-        txt = fetch('http://maps.googleapis.com/maps/api/geocode/xml?sensor=false&address=%s' % a)
+        txt = to_native(fetch('http://maps.googleapis.com/maps/api/geocode/xml?sensor=false&address=%s' % a))
         item = regex_geocode.search(txt)
         (la, lo) = (float(item.group('la')), float(item.group('lo')))
         return (la, lo)
-    except:
+    except Exception as exception:
+        logger.exception(txt)
+        logger.exception(exception)
         return (0.0, 0.0)
 
 
@@ -4802,7 +4804,8 @@ def reverse_geocode(lat, lng, lang=None):
         lang = current.T.accepted_language
     try:
         return json.loads(fetch('http://maps.googleapis.com/maps/api/geocode/json?latlng=%(lat)s,%(lng)s&language=%(lang)s' % locals()))['results'][0]['formatted_address']
-    except:
+    except Exception as exception:
+        logger.exception(exception)
         return ''
 
 
