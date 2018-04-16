@@ -16,7 +16,7 @@ import os
 
 # change these parameters as required
 LOGGING = True
-SOFTCRON = False
+SOFTCRON = True
 
 
 path = os.path.dirname(os.path.abspath(__file__))
