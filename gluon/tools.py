@@ -2040,21 +2040,21 @@ class Auth(AuthAPI):
             def rename(icon): return icon + ' ' + icon.replace('icon', 'glyphicon')
             self.bar = UL(LI(Anr(I(_class=rename('icon ' + items[0]['icon'])),
                                  ' ' + items[0]['name'],
-                                 _href=items[0]['href'])), _class='dropdown-menu')
+                                 _href=items[0]['href'], _class='dropdown-item')), _class='dropdown-menu pull-right')
             del items[0]
             for item in items:
                 self.bar.insert(-1, LI(Anr(I(_class=rename('icon ' + item['icon'])),
                                            ' ' + item['name'],
-                                           _href=item['href'])))
+                                           _href=item['href'], _class='dropdown-item')))
             self.bar.insert(-1, LI('', _class='divider'))
             if self.user_id:
                 self.bar = LI(Anr(prefix, user_identifier,
-                                  _href='#', _class="dropdown-toggle",
+                                  _href='#', _class="nav-link dropdown-toggle",
                                   data={'toggle': 'dropdown'}),
                               self.bar, _class='dropdown')
             else:
                 self.bar = LI(Anr(T('Log In'),
-                                  _href='#', _class="dropdown-toggle",
+                                  _href='#', _class="nav-link dropdown-toggle",
                                   data={'toggle': 'dropdown'}), self.bar,
                               _class='dropdown')
 
