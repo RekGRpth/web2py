@@ -58,6 +58,7 @@ create_missing_folders()
 # set up logging for subsequent imports
 import logging
 import logging.config
+import logging.handlers
 
 # This needed to prevent exception on Python 2.5:
 # NameError: name 'gluon' is not defined
@@ -75,6 +76,15 @@ pjoin = os.path.join
 
 try:
     logging.config.fileConfig(abspath("logging.conf"))
+    handlers = logging.getLogger('web2py.app.welcome').handlers
+    for application in os.listdir(abspath('applications')):
+        if not re.compile('^\w+$').match(application) or application == '__pycache__': continue
+        logger = logging.getLogger('web2py.app.%s' % application)
+        logger.addHandler(handlers[0])
+        rotatingFileHandler = logging.handlers.RotatingFileHandler(filename='logs/app.%s.log' % application)
+        rotatingFileHandler.setFormatter(handlers[1].formatter)
+        logger.addHandler(rotatingFileHandler)
+        logger.setLevel('DEBUG')
 except:  # fails on GAE or when logfile is missing
     logging.basicConfig()
 logger = logging.getLogger("web2py")
