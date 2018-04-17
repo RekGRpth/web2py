@@ -76,15 +76,23 @@ pjoin = os.path.join
 
 try:
     logging.config.fileConfig(abspath("logging.conf"))
-    handlers = logging.getLogger('web2py.app.welcome').handlers
+    welcome_logger = logging.getLogger('web2py.app.welcome')
     for application in os.listdir(abspath('applications')):
-        if not re.compile('^\w+$').match(application) or application == '__pycache__': continue
-        logger = logging.getLogger('web2py.app.%s' % application)
-        logger.addHandler(handlers[0])
-        rotatingFileHandler = logging.handlers.RotatingFileHandler(filename='logs/app.%s.log' % application)
-        rotatingFileHandler.setFormatter(handlers[1].formatter)
-        logger.addHandler(rotatingFileHandler)
-        logger.setLevel('DEBUG')
+        if not re.compile('^\w+$').match(application) or application in ('__pycache__', 'welcome'): continue
+        application_logger = logging.getLogger('web2py.app.%s' % application)
+        application_logger.addHandler(welcome_logger.handlers[0])
+        rotatingFileHandler = logging.handlers.RotatingFileHandler(
+            'logs/app.%s.log' % application,
+            mode=welcome_logger.handlers[1].mode,
+            maxBytes=welcome_logger.handlers[1].maxBytes,
+            backupCount=welcome_logger.handlers[1].backupCount,
+            encoding=welcome_logger.handlers[1].encoding,
+            delay=welcome_logger.handlers[1].delay,
+        )
+        rotatingFileHandler.setFormatter(welcome_logger.handlers[1].formatter)
+        rotatingFileHandler.setLevel(welcome_logger.handlers[1].level)
+        application_logger.addHandler(rotatingFileHandler)
+        application_logger.setLevel(welcome_logger.level)
 except:  # fails on GAE or when logfile is missing
     logging.basicConfig()
 logger = logging.getLogger("web2py")
