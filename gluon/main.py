@@ -93,6 +93,8 @@ try:
         rotatingFileHandler.setLevel(welcome_logger.handlers[1].level)
         application_logger.addHandler(rotatingFileHandler)
         application_logger.setLevel(welcome_logger.level)
+        application_logger.propagate = welcome_logger.propagate
+        application_logger.disabled = welcome_logger.disabled
 except:  # fails on GAE or when logfile is missing
     logging.basicConfig()
 logger = logging.getLogger("web2py")
