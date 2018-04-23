@@ -226,7 +226,7 @@ def main():
                             'Force expiry based on -x option or auth.settings.expiration.')
                       )
     parser.add_option('-o', '--once',
-                      action='store_true', dest='once', default=False,
+                      action='store_true', dest='once', default=True,
                       help='Delete sessions, then exit.',
                       )
     parser.add_option('-s', '--sleep',
