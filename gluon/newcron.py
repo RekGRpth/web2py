@@ -332,7 +332,7 @@ def crondance(applications_parent, ctype='soft', startup=False, apps=None):
             if sys.executable.lower().endswith('pythonservice.exe'):
                 _python_exe = os.path.join(sys.exec_prefix, 'python.exe')
             else:
-                _python_exe = '/usr/bin/python'
+                _python_exe = sys.executable
             commands = [_python_exe]
             w2p_path = fileutils.abspath('web2py.py', gluon=True)
             if os.path.exists(w2p_path):
