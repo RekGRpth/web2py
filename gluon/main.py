@@ -679,11 +679,12 @@ def appfactory(wsgiapp=wsgibase,
             prof.dump_stats(destfile)
 
         try:
+            today = datetime.datetime.today()
             line = '%s, %s, %s, %s, %s, %s, %f\n' % (
                 environ['REMOTE_ADDR'],
-                datetime.datetime.today().strftime('%Y-%m-%d %H:%M:%S'),
+                '%s.%03d' % (today.strftime('%Y-%m-%d %H:%M:%S'), int(today.microsecond / 1000)),
                 environ['REQUEST_METHOD'],
-                environ['PATH_INFO'].replace(',', '%2C'),
+                '%s://%s:%s%s' % (environ['wsgi.url_scheme'], environ['HTTP_HOST'], environ['SERVER_PORT'], environ['REQUEST_URI']),
                 environ['SERVER_PROTOCOL'],
                 (status_headers[0])[:3],
                 time.time() - time_in,
