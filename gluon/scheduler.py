@@ -870,9 +870,7 @@ class Scheduler(MetaScheduler):
         db.define_table(
             'scheduler_task_deps',
             Field('job_name', default='job_0'),
-            Field('task_parent', 'integer',
-                  requires=IS_IN_DB(db, 'scheduler_task.id', '%(task_name)s')
-                  ),
+            Field('task_parent', 'reference scheduler_task'),
             Field('task_child', 'reference scheduler_task'),
             Field('can_visit', 'boolean', default=False),
             migrate=self.__get_migrate('scheduler_task_deps', migrate)
