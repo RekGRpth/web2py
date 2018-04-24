@@ -274,8 +274,8 @@ class cronlauncher(threading.Thread):
             pass
         if proc.returncode != 0:
             logger.warning(
-                'WEB2PY CRON Call returned code %s:\n%s' %
-                (proc.returncode, stdoutdata + stderrdata))
+                'WEB2PY CRON "%s" Call returned code %s:\n%s' %
+                (' '.join(cmd), proc.returncode, stdoutdata + stderrdata))
         else:
             logger.debug('WEB2PY CRON Call returned success:\n%s'
                          % stdoutdata)
