@@ -845,7 +845,7 @@ class Scheduler(MetaScheduler):
             Field('start_time', 'datetime'),
             Field('stop_time', 'datetime'),
             Field('run_output', 'text'),
-            Field('run_result', 'text'),
+            Field('run_result', 'json'),
             Field('traceback', 'text'),
             Field('worker_name', default=self.worker_name),
             migrate=self.__get_migrate('scheduler_run', migrate)
@@ -1094,7 +1094,7 @@ class Scheduler(MetaScheduler):
                 db(sr.id == task.run_id).update(
                     status=task_report.status,
                     stop_time=now,
-                    run_result=task_report.result,
+                    run_result=loads(task_report.result),
                     run_output=task_report.output,
                     traceback=task_report.tb)
             else:
@@ -1566,8 +1566,7 @@ class Scheduler(MetaScheduler):
         ).first()
         if row and output:
             row.result = row.scheduler_run.run_result and \
-                loads(row.scheduler_run.run_result,
-                      object_hook=_decode_dict) or None
+                row.scheduler_run.run_result or None
         return row
 
     def stop_task(self, ref):
