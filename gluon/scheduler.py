@@ -111,7 +111,7 @@ class Task(object):
     """Defines a "task" object that gets passed from the main thread to the
     executor's one
     """
-    def __init__(self, app, function, timeout, args='[]', vars='{}', **kwargs):
+    def __init__(self, app, function, timeout, args=[], vars={}, **kwargs):
         logger.debug(' new task allocated: %s.%s', app, function)
         self.app = app
         self.function = function
@@ -497,14 +497,10 @@ def executor(queue, task, out):
             from gluon import current
             current.W2P_TASK = W2P_TASK
             globals().update(_env)
-            args = _decode_list(loads(task.args))
-            vars = loads(task.vars, object_hook=_decode_dict)
-            result = dumps(_function(*args, **vars), ensure_ascii=False)
+            result = dumps(_function(*task.args, **task.vars), ensure_ascii=False)
         else:
             # for testing purpose only
-            result = eval(task.function)(
-                *loads(task.args, object_hook=_decode_dict),
-                **loads(task.vars, object_hook=_decode_dict))
+            result = eval(task.function)(*task.args, **task.vars)
         if len(result) >= 1024:
             fd, temp_path = tempfile.mkstemp(suffix='.w2p_sched')
             with os.fdopen(fd, 'w') as f:
@@ -811,8 +807,8 @@ class Scheduler(MetaScheduler):
             Field('uuid', length=255,
                   requires=IS_NOT_IN_DB(db, 'scheduler_task.uuid'),
                   unique=True, default=web2py_uuid),
-            Field('args', 'text', default='[]', requires=TYPE(list)),
-            Field('vars', 'text', default='{}', requires=TYPE(dict)),
+            Field('args', 'json', default=[], requires=TYPE(list)),
+            Field('vars', 'json', default={}, requires=TYPE(dict)),
             Field('enabled', 'boolean', default=True),
             Field('start_time', 'datetime', default=now,
                   requires=IS_DATETIME()),
@@ -1489,8 +1485,8 @@ class Scheduler(MetaScheduler):
         """
         if hasattr(function, '__name__'):
             function = function.__name__
-        targs = 'args' in kwargs and kwargs.pop('args') or dumps(pargs, ensure_ascii=False)
-        tvars = 'vars' in kwargs and kwargs.pop('vars') or dumps(pvars, ensure_ascii=False)
+        targs = 'args' in kwargs and kwargs.pop('args') or pargs
+        tvars = 'vars' in kwargs and kwargs.pop('vars') or pvars
         tuuid = 'uuid' in kwargs and kwargs.pop('uuid') or web2py_uuid()
         tname = 'task_name' in kwargs and kwargs.pop('task_name') or function
         immediate = 'immediate' in kwargs and kwargs.pop('immediate') or None
