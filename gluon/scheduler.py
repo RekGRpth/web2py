@@ -502,10 +502,10 @@ def executor(queue, task, out):
             # for testing purpose only
             result = eval(task.function)(*task.args, **task.vars)
         dump_result = dumps(result, ensure_ascii=False)
-        if len(dumps_result) >= 1024:
+        if len(dump_result) >= 1024:
             fd, temp_path = tempfile.mkstemp(suffix='.w2p_sched')
             with os.fdopen(fd, 'w') as f:
-                f.write(dumps_result)
+                f.write(dump_result)
             result = dict(w2p_special=temp_path)
         queue.put(TaskReport('COMPLETED', result=result))
     except BaseException as e:
