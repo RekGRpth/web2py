@@ -497,15 +497,16 @@ def executor(queue, task, out):
             from gluon import current
             current.W2P_TASK = W2P_TASK
             globals().update(_env)
-            result = dumps(_function(*task.args, **task.vars), ensure_ascii=False)
+            result = _function(*task.args, **task.vars)
         else:
             # for testing purpose only
             result = eval(task.function)(*task.args, **task.vars)
-        if len(result) >= 1024:
+        dump_result = dumps(result, ensure_ascii=False)
+        if len(dumps_result) >= 1024:
             fd, temp_path = tempfile.mkstemp(suffix='.w2p_sched')
             with os.fdopen(fd, 'w') as f:
-                f.write(result)
-            result = 'w2p_special:%s' % temp_path
+                f.write(dumps_result)
+            result = dict(w2p_special=temp_path)
         queue.put(TaskReport('COMPLETED', result=result))
     except BaseException as e:
         tb = traceback.format_exc()
@@ -599,10 +600,10 @@ class MetaScheduler(threading.Thread):
                 logger.debug('  task completed or failed')
                 tr = queue.get()
         result = tr.result
-        if result and result.startswith('w2p_special'):
-            temp_path = result.replace('w2p_special:', '', 1)
+        if result and isinstance(result, dict) and 'w2p_special' in result:
+            temp_path = result['w2p_special']
             with open(temp_path) as f:
-                tr.result = f.read()
+                tr.result = loads(f.read())
             os.unlink(temp_path)
         tr.output = task_output
         return tr
@@ -1085,7 +1086,7 @@ class Scheduler(MetaScheduler):
         st = db.scheduler_task
         sr = db.scheduler_run
         if not self.discard_results:
-            if task_report.result != 'null' or task_report.tb:
+            if task_report.result is not None or task_report.tb:
                 # result is 'null' as a string if task completed
                 # if it's stopped it's None as NoneType, so we record
                 # the STOPPED "run" anyway
@@ -1094,7 +1095,7 @@ class Scheduler(MetaScheduler):
                 db(sr.id == task.run_id).update(
                     status=task_report.status,
                     stop_time=now,
-                    run_result=loads(task_report.result),
+                    run_result=task_report.result,
                     run_output=task_report.output,
                     traceback=task_report.tb)
             else:
