@@ -1898,7 +1898,7 @@ class Auth(AuthAPI):
             def rename(icon): return icon + ' ' + icon.replace('icon', 'glyphicon')
             self.bar = UL(LI(Anr(I(_class=rename('icon ' + items[0]['icon'])),
                                  ' ' + items[0]['name'],
-                                 _href=items[0]['href'], _class='dropdown-item')), _class='dropdown-menu pull-right')
+                                 _href=items[0]['href'], _class='dropdown-item')), _class='dropdown-menu dropdown-menu-right')
             del items[0]
             for item in items:
                 self.bar.insert(-1, LI(Anr(I(_class=rename('icon ' + item['icon'])),
