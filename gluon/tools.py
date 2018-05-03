@@ -4931,7 +4931,7 @@ class Service(object):
             return f
         return _amfrpc3
 
-    def soap(self, name=None, returns=None, args=None, doc=None):
+    def soap(self, name=None, returns=None, args=None, doc=None, response_element_name=None):
         """
         Example:
             Use as::
@@ -4955,7 +4955,7 @@ class Service(object):
         """
 
         def _soap(f):
-            self.soap_procedures[name or f.__name__] = f, returns, args, doc
+            self.soap_procedures[name or f.__name__] = f, returns, args, doc, response_element_name
             return f
         return _soap
 
@@ -5261,8 +5261,8 @@ class Service(object):
             prefix='pys',
             documentation=documentation,
             ns=True)
-        for method, (function, returns, args, doc) in iteritems(procedures):
-            dispatcher.register_function(method, function, returns, args, doc)
+        for method, (function, returns, args, doc, resp_elem_name) in iteritems(procedures):
+            dispatcher.register_function(method, function, returns, args, doc, resp_elem_name)
         if request.env.request_method == 'POST':
             fault = {}
             # Process normal Soap Operation
