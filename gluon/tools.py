@@ -1861,6 +1861,7 @@ class Auth(AuthAPI):
                 items.append({'name': T('Password'),
                               'href': href('change_password'),
                               'icon': 'icon-lock'})
+            if 'impersonate' not in self.settings.actions_disabled and self.has_permission('impersonate', self.table_user(), self.user_id): items.append({'name': T('Impersonate'), 'href': href('impersonate'), 'icon': 'icon-lock'})
 
             if user_identifier is DEFAULT:
                 user_identifier = '%(first_name)s'
