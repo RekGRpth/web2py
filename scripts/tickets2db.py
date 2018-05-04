@@ -15,7 +15,7 @@ SLEEP_MINUTES = 5
 
 errors_path = os.path.join(request.folder, 'errors')
 try:
-    db_string = open(os.path.join(request.folder, 'private', 'ticket_storage.txt')).read().replace('\r', '').replace('\n', '').strip()
+    db_string = open(os.path.join(request.folder, 'private', 'ticket_storage.txt'), encoding='UTF-8').read().replace('\r', '').replace('\n', '').strip()
 except:
     db_string = 'sqlite://storage.db'
 
@@ -40,7 +40,7 @@ while 1:
         modified_time = os.stat(filename)[stat.ST_MTIME]
         modified_time = datetime.datetime.fromtimestamp(modified_time)
         ticket_id = file
-        ticket_data = open(filename).read()
+        ticket_data = open(filename, encoding='UTF-8').read()
         tk_table.insert(ticket_id=ticket_id,
                         ticket_data=ticket_data,
                         created_datetime=modified_time
