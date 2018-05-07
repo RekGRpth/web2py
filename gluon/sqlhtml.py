@@ -719,13 +719,27 @@ class AutocompleteWidget(object):
                                         limitby=self.limitby,
                                         *(self.fields + self.help_fields))
             elif self.at_beginning:
-                rows = self.db(field.like(kword + '%', case_sensitive=False)
+                if self.help_fields:
+                    rows = self.db(reduce(lambda a,b: a|b, [field1.like(kword + '%', case_sensitive=False) for field1 in self.help_fields])
+                               ).select(orderby=self.orderby,
+                                        limitby=self.limitby,
+                                        distinct=self.distinct,
+                                        *(self.fields + self.help_fields))
+                else:
+                    rows = self.db(field.like(kword + '%', case_sensitive=False)
                                ).select(orderby=self.orderby,
                                         limitby=self.limitby,
                                         distinct=self.distinct,
                                         *(self.fields + self.help_fields))
             else:
-                rows = self.db(field.contains(kword, case_sensitive=False)
+                if self.help_fields:
+                    rows = self.db(reduce(lambda a,b: a|b, [field1.contains(kword, case_sensitive=False) for field1 in self.help_fields])
+                               ).select(orderby=self.orderby,
+                                        limitby=self.limitby,
+                                        distinct=self.distinct,
+                                        *(self.fields + self.help_fields))
+                else:
+                    rows = self.db(field.contains(kword, case_sensitive=False)
                                ).select(orderby=self.orderby,
                                         limitby=self.limitby,
                                         distinct=self.distinct,
