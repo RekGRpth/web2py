@@ -721,7 +721,7 @@ class AutocompleteWidget(object):
             elif self.at_beginning:
                 if self.help_fields:
                     rows = self.db(reduce(lambda a,b: a|b, [field1.like(kword + '%', case_sensitive=False) for field1 in self.help_fields])
-                               ).select(orderby=self.orderby,
+                               ).select(orderby=self.orderby if self.orderby is not None else reduce(lambda a,b: a|b, self.help_fields),
                                         limitby=self.limitby,
                                         distinct=self.distinct,
                                         *(self.fields + self.help_fields))
@@ -734,7 +734,7 @@ class AutocompleteWidget(object):
             else:
                 if self.help_fields:
                     rows = self.db(reduce(lambda a,b: a|b, [field1.contains(kword, case_sensitive=False) for field1 in self.help_fields])
-                               ).select(orderby=self.orderby,
+                               ).select(orderby=self.orderby if self.orderby is not None else reduce(lambda a,b: a|b, self.help_fields),
                                         limitby=self.limitby,
                                         distinct=self.distinct,
                                         *(self.fields + self.help_fields))
