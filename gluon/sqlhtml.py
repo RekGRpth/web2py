@@ -803,7 +803,7 @@ class AutocompleteWidget(object):
                         break
             else:
                 record = self.db(
-                    self.fields[1] == value).select(self.fields[0]).first()
+                    self.fields[1].cast('text') == value).select(self.fields[0]).first()
             attr['value'] = record and record[self.fields[0].name]
             attr['_onblur'] = "jQuery('#%(div_id)s').delay(500).fadeOut('slow');" % \
                 dict(div_id=div_id, u='F' + self.keyword)
