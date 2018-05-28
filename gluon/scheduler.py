@@ -685,12 +685,14 @@ class TYPE(object):
     Used for `args` and `vars` of the scheduler_task table
     """
 
-    def __init__(self, myclass=list, parse=False):
+    def __init__(self, myclass=(list, tuple), parse=False):
         self.myclass = myclass
         self.parse = parse
 
     def __call__(self, value):
         from gluon import current
+        if isinstance(value, self.myclass): return (value, None)
+        return (value, current.T('Not of type: %s') % self.myclass)
         try:
             obj = loads(value)
         except:
@@ -808,7 +810,7 @@ class Scheduler(MetaScheduler):
             Field('uuid', length=255,
                   requires=IS_NOT_IN_DB(db, 'scheduler_task.uuid'),
                   unique=True, default=web2py_uuid),
-            Field('args', 'json', default=[], requires=TYPE(list)),
+            Field('args', 'json', default=[], requires=TYPE((list, tuple))),
             Field('vars', 'json', default={}, requires=TYPE(dict)),
             Field('enabled', 'boolean', default=True),
             Field('start_time', 'datetime', default=now,
