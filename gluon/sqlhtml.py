@@ -2167,11 +2167,15 @@ class SQLFORM(FORM):
                                                  _class=widget_._class + ' form-control',
                                                  **iso_format)
                 elif hasattr(field.requires, 'options'):
-                    value_input = SELECT(
-                        *[OPTION(v, _value=k)
-                          for k, v in field.requires.options()],
-                         _class='form-control',
-                         **dict(_id=_id))
+                    widget_ = field.widget if field.widget is not None else SQLFORM.widgets.options.widget
+                    value_input = widget_(
+                        field, field.default, _id=_id,
+                        _class='form-control')
+#                    value_input = SELECT(
+#                        *[OPTION(v, _value=k)
+#                          for k, v in field.requires.options()],
+#                         _class='form-control',
+#                         **dict(_id=_id))
                 elif (field_type.startswith('integer') or
                       field_type.startswith('reference ') or
                       field_type.startswith('list:integer') or
