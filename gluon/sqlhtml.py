@@ -1397,7 +1397,6 @@ class SQLFORM(FORM):
 
         self.field_parent = {}
         xfields = []
-        self.fields = fields
         self.custom = Storage()
         self.custom.dspval = Storage()
         self.custom.inpval = Storage()
@@ -2189,6 +2188,13 @@ class SQLFORM(FORM):
                     value_input = INPUT(
                         _type='text', _id=_id,
                         _class="%s %s" % ((field_type or ''), 'form-control'))
+
+                if hasattr(field.requires, 'options'):
+                    value_input = SELECT(
+                        *[OPTION(v, _value=k)
+                          for k, v in field.requires.options()],
+                         _class='form-control',
+                         **dict(_id=_id))
 
                 new_button = INPUT(
                     _type="button", _value=T('New Search'), _class="btn btn-default", _title=T('Start building a new search'),
