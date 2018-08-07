@@ -78,7 +78,7 @@ path = os.getcwd()
 if 'WEB2PY_PATH' not in os.environ:
     os.environ['WEB2PY_PATH'] = path
 
-IDENTIFIER = "%s#%s" % (socket.gethostname(), os.getpid())
+IDENTIFIER = "%s#%s#%s" % (socket.gethostname(), os.getpid(), web2py_uuid())
 
 #logger = logging.getLogger('web2py.scheduler.%s' % IDENTIFIER)
 logger = logging.getLogger('web2py.scheduler')
