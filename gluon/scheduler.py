@@ -494,7 +494,7 @@ def executor(queue, task, out):
             # Inject W2P_TASK into environment
             _env.update({'W2P_TASK': W2P_TASK})
             # Inject W2P_TASK into current
-            from gluon import current
+#            from gluon import current
             current.W2P_TASK = W2P_TASK
             globals().update(_env)
             result = _function(*task.args, **task.vars)
@@ -1003,6 +1003,7 @@ class Scheduler(MetaScheduler):
                 self.wrapped_assign_tasks(db)
             else:
                 logger.info('nothing to do')
+            db.commit()
             return None
         times_run = task.times_run + 1
         if task.cronline:
@@ -1239,8 +1240,10 @@ class Scheduler(MetaScheduler):
                     logger.error('Error cleaning up')
                     logger.exception(exception)
             db.commit()
-        except db._adapter.driver.OperationalError:
+        except db._adapter.driver.OperationalError as exception:
             self.db_thread = None
+            logger.error('OperationalError')
+            logger.exception(exception)
         except Exception as exception:
             logger.error('Error retrieving status')
             logger.exception(exception)
