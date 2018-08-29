@@ -1240,9 +1240,9 @@ class Scheduler(MetaScheduler):
                     logger.error('Error cleaning up')
                     logger.exception(exception)
             db.commit()
-        except db._adapter.driver.OperationalError as exception:
+        except (db._adapter.driver.OperationalError, db._adapter.driver.InterfaceError) as exception:
             self.db_thread = None
-            logger.error('OperationalError')
+#            logger.error('OperationalError')
             logger.exception(exception)
         except Exception as exception:
             logger.error('Error retrieving status')
