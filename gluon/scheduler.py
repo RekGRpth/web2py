@@ -1158,15 +1158,15 @@ class Scheduler(MetaScheduler):
         - does "housecleaning" for dead workers
         - triggers tasks assignment to workers
         """
-        if self.db_thread:
-            # BKR 20180612 check if connection still works
-            try:
-                query = self.db_thread.scheduler_worker.worker_name == self.worker_name
-                self.db_thread(query).count()
-            except self.db_thread._adapter.connection.OperationalError:
-                # if not -> throw away self.db_thread and force reconnect
-                self.db_thread = None
-
+#        if self.db_thread:
+#            # BKR 20180612 check if connection still works
+#            try:
+#                query = self.db_thread.scheduler_worker.worker_name == self.worker_name
+#                self.db_thread(query).count()
+#            except self.db_thread._adapter.connection.OperationalError:
+#                # if not -> throw away self.db_thread and force reconnect
+#                self.db_thread = None
+#
         if not self.db_thread:
             logger.debug('thread building own DAL object')
             self.db_thread = self.db.__class__(
@@ -1420,7 +1420,7 @@ class Scheduler(MetaScheduler):
                             (st.status.belongs((QUEUED, ASSIGNED)))
                         ).update(**d)
                         wkgroups[gname]['workers'][myw]['c'] += 1
-                db.commit()
+            db.commit()
         # I didn't report tasks but I'm working nonetheless!!!!
         if x > 0:
             self.w_stats.empty_runs = 0
