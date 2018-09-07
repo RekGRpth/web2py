@@ -20,9 +20,10 @@ import gluon.rewrite
 import shutil
 import platform
 
+from distutils.version import LooseVersion
 try:
     import git
-    if git.__version__ < '0.3.1':
+    if LooseVersion(git.__version__) < LooseVersion('0.3.1'):
         raise ImportError("Your version of git is %s. Upgrade to 0.3.1 or better." % git.__version__)
     have_git = True
 except ImportError as e:
