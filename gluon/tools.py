@@ -898,11 +898,11 @@ class Recaptcha2(DIV):
         if not recaptcha_response_field:
             self.errors['captcha'] = self.error_message
             return False
-        params = urlencode({
+        params = to_bytes(urlencode({
             'secret': self.private_key,
             'remoteip': remoteip,
             'response': recaptcha_response_field,
-        })
+        }))
         request = urllib2.Request(
             url=self.VERIFY_SERVER,
             data=params,
