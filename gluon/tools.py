@@ -878,6 +878,7 @@ class Recaptcha2(DIV):
                  label='Verify:',
                  options=None,
                  comment='',
+                 attributes={},
                  ):
         request = request or current.request
         self.request_vars = request and request.vars or current.request.vars
@@ -887,7 +888,7 @@ class Recaptcha2(DIV):
         self.errors = Storage()
         self.error_message = error_message
         self.components = []
-        self.attributes = {}
+        self.attributes = attributes
         self.label = label
         self.options = options or {}
         self.comment = comment
@@ -952,7 +953,7 @@ class Recaptcha2(DIV):
   </div>
 </div>
 </div>""" % dict(public_key=public_key))
-            )
+            ), **self.attributes
         )
         if not self.errors.captcha:
             return XML(captcha).xml()
