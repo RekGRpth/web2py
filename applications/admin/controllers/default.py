@@ -563,7 +563,7 @@ def enable():
         os.unlink(filename)
         return SPAN(T('Disable'), _style='color:green')
     else:
-        safe_open(filename, 'wb').write('disabled: True\ntime-disabled: %s' % request.now)
+        safe_open(filename, 'wb').write(to_bytes('disabled: True\ntime-disabled: %s' % request.now))
         return SPAN(T('Enable'), _style='color:red')
 
 
