@@ -139,6 +139,8 @@ def show_if(cond):
             cond.second = list(cond.second)
         if isinstance(cond.second, (list, tuple)):
             return base, ','.join("[value='%s']" % (v) for v in cond.second)
+    if cond.op.__name__ == 'regexp':
+        return base, ':regex(value,%s)' % cond.second
     raise RuntimeError("Not Implemented Error")
 
 
