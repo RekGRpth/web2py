@@ -231,7 +231,7 @@ if __name__ == "__main__":
     urls = [
         (r'/', PostHandler),
         (r'/token', TokenHandler),
-        (r'/realtime/(.*)', DistributeHandler)]
+        (r'/ws/(.*)', DistributeHandler)]
     application = tornado.web.Application(urls, auto_reload=True)
     if options.keyfile and options.certfile:
         ssl_options = dict(certfile=options.certfile, keyfile=options.keyfile)
