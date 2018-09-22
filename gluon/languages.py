@@ -16,7 +16,7 @@ import re
 import sys
 import pkgutil
 import logging
-#from cgi import escape
+from cgi import escape
 from threading import RLock
 
 from gluon.utils import local_html_escape
@@ -51,11 +51,9 @@ DEFAULT_CONSTRUCT_PLURAL_FORM = lambda word, plural_id: word
 if PY2:
     NUMBERS = (int, long, float)
     from gluon.utf8 import Utf8
-    from cgi import escape
 else:
     NUMBERS = (int, float)
     Utf8 = str
-    from glob import escape
 
 # pattern to find T(blah blah blah) expressions
 PY_STRING_LITERAL_RE = r'(?<=[^\w]T\()(?P<name>'\
