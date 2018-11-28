@@ -1437,6 +1437,7 @@ class SQLFORM(FORM):
             field = (self.table[fieldname] if fieldname in self.table.fields
                      else self.extra_fields[fieldname])
             comment = None
+            field.form = self
 
             if comments:
                 comment = col3.get(fieldname, field.comment)
