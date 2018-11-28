@@ -979,7 +979,7 @@ class DIV(XmlComponent):
         return to_native(self.xml())
 
     def flatten(self, render=None):
-        """
+        r"""
         Returns the text stored by the DIV object rendered by the render function
         the render function must take text, tagname, and attributes
         `render=None` is equivalent to `render=lambda text, tag, attr: text`
@@ -987,7 +987,7 @@ class DIV(XmlComponent):
         Examples:
 
         >>> markdown = lambda text, tag=None, attributes={}: \
-                        {None: re.sub('\s+',' ',text), \
+                        {None: re.sub(r'\s+',' ',text), \
                          'h1':'#'+text+'\\n\\n', \
                          'p':text+'\\n'}.get(tag,text)
         >>> a=TAG('<h1>Header</h1><p>this is a     test</p>')
@@ -1008,10 +1008,10 @@ class DIV(XmlComponent):
             text = render(text, self.tag, self.attributes)
         return text
 
-    regex_tag = re.compile('^[\w\-\:]+')
-    regex_id = re.compile('#([\w\-]+)')
-    regex_class = re.compile('\.([\w\-]+)')
-    regex_attr = re.compile('\[([\w\-\:]+)=(.*?)\]')
+    regex_tag = re.compile(r'^[\w\-\:]+')
+    regex_id = re.compile(r'#([\w\-]+)')
+    regex_class = re.compile(r'\.([\w\-]+)')
+    regex_attr = re.compile(r'\[([\w\-\:]+)=(.*?)\]')
 
     def elements(self, *args, **kargs):
         """
@@ -1123,7 +1123,7 @@ class DIV(XmlComponent):
                     if match_id:
                         kargs['_id'] = match_id.group(1)
                     if match_class:
-                        kargs['_class'] = re.compile('(?<!\w)%s(?!\w)' %
+                        kargs['_class'] = re.compile(r'(?<!\w)%s(?!\w)' %
                                                      match_class.group(1).replace('-', '\\-').replace(':', '\\:'))
                     for item in match_attr:
                         kargs['_' + item.group(1)] = item.group(2)
@@ -2607,7 +2607,7 @@ def embed64(filename=None,
 
 # TODO: Check if this test() is still relevant now that we have gluon/tests/test_html.py
 def test():
-    """
+    r"""
     Example:
 
     >>> from validators import *
@@ -2641,7 +2641,7 @@ def test():
     >>> print(form.xml())
     <form action="#" enctype="multipart/form-data" method="post"><input class="invalidinput" name="myvar" type="text" value="as df" /><div class="error_wrapper"><div class="error" id="myvar__error">only alphanumeric!</div></div></form>
     >>> session={}
-    >>> form=FORM(INPUT(value="Hello World", _name="var", requires=IS_MATCH('^\w+$')))
+    >>> form=FORM(INPUT(value="Hello World", _name="var", requires=IS_MATCH(r'^\w+$')))
     >>> isinstance(form.as_dict(), dict)
     True
     >>> "vars" in form.as_dict(flat=True)
@@ -2714,7 +2714,7 @@ class web2pyHTMLParser(HTMLParser):
 def markdown_serializer(text, tag=None, attr=None):
     attr = attr or {}
     if tag is None:
-        return re.sub('\s+', ' ', text)
+        return re.sub(r'\s+', ' ', text)
     if tag == 'br':
         return '\n\n'
     if tag == 'h1':
