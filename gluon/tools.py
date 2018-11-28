@@ -964,6 +964,7 @@ class Recaptcha2(DIV):
 
 # this should only be used for captcha and perhaps not even for that
 def addrow(form, a, b, c, style, _id, position=-1):
+    b.form = form
     if style == "divs":
         form[0].insert(position, DIV(DIV(LABEL(a), _class='w2p_fl'),
                                      DIV(b, _class='w2p_fw'),
