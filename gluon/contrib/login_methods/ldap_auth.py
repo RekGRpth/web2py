@@ -450,6 +450,9 @@ def ldap_auth(server='ldap',
             return True
         except ldap.INVALID_CREDENTIALS as e:
             return False
+            import traceback
+            logger.warning('[%s] Error in ldap processing' % str(username))
+            logger.debug(traceback.format_exc())
         except ldap.LDAPError as e:
             import traceback
             logger.warning('[%s] Error in ldap processing' % str(username))
