@@ -33,8 +33,9 @@ def ldap_auth(server='ldap',
               custom_scope='subtree',
               allowed_groups=None,
               manage_user=False,
-              user_firstname_attrib='cn:1',
-              user_lastname_attrib='cn:2',
+              user_middlename_attrib='cn:3',
+              user_firstname_attrib='cn:2',
+              user_lastname_attrib='cn:1',
               user_mail_attrib='mail',
               manage_groups=False,
               manage_groups_callback=[],
@@ -199,6 +200,7 @@ def ldap_auth(server='ldap',
                       username_attrib=username_attrib,
                       custom_scope=custom_scope,
                       manage_user=manage_user,
+                      user_middlename_attrib=user_middlename_attrib,
                       user_firstname_attrib=user_firstname_attrib,
                       user_lastname_attrib=user_lastname_attrib,
                       user_mail_attrib=user_mail_attrib,
@@ -212,6 +214,12 @@ def ldap_auth(server='ldap',
         logger.debug('mode: [%s] manage_user: [%s] custom_scope: [%s]'
                      ' manage_groups: [%s]' % (str(mode), str(manage_user), str(custom_scope), str(manage_groups)))
         if manage_user:
+            if user_middlename_attrib.count(':') > 0:
+                (user_middlename_attrib,
+                 user_middlename_part) = user_middlename_attrib.split(':', 1)
+                user_middlename_part = (int(user_middlename_part) - 1)
+            else:
+                user_firstname_part = None
             if user_firstname_attrib.count(':') > 0:
                 (user_firstname_attrib,
                  user_firstname_part) = user_firstname_attrib.split(':', 1)
@@ -224,6 +232,8 @@ def ldap_auth(server='ldap',
                 user_lastname_part = (int(user_lastname_part) - 1)
             else:
                 user_lastname_part = None
+            user_middlename_attrib = ldap.filter.escape_filter_chars(
+                user_middlename_attrib)
             user_firstname_attrib = ldap.filter.escape_filter_chars(
                 user_firstname_attrib)
             user_lastname_attrib = ldap.filter.escape_filter_chars(
@@ -259,8 +269,7 @@ def ldap_auth(server='ldap',
                 # in the ldap_basedn
                 requested_attrs = ['sAMAccountName']
                 if manage_user:
-                    requested_attrs.extend([user_firstname_attrib, user_lastname_attrib, user_mail_attrib])
-
+                    requested_attrs.extend([user_middlename_attrib, user_firstname_attrib, user_lastname_attrib, user_mail_attrib])
                 result = con.search_ext_s(
                     ldap_basedn, ldap.SCOPE_SUBTREE,
                     "(&(sAMAccountName=%s)(%s))" % (ldap.filter.escape_filter_chars(username_bare), filterstr),
@@ -283,7 +292,8 @@ def ldap_auth(server='ldap',
                 con.simple_bind_s(username, password)
                 if manage_user:
                     # TODO: sorry I have no clue how to query attrs in domino
-                    result = {user_firstname_attrib: username,
+                    result = {user_middlename_attrib: None,
+                              user_firstname_attrib: username,
                               user_lastname_attrib: None,
                               user_mail_attrib: None}
 
@@ -296,7 +306,7 @@ def ldap_auth(server='ldap',
                 if manage_user:
                     result = con.search_s(dn, ldap.SCOPE_BASE,
                                           "(objectClass=*)",
-                                          [user_firstname_attrib, user_lastname_attrib, user_mail_attrib])[0][1]
+                                          [user_middlename_attrib, user_firstname_attrib, user_lastname_attrib, user_mail_attrib])[0][1]
 
             if ldap_mode == 'uid':
                 # OpenLDAP (UID)
@@ -310,7 +320,7 @@ def ldap_auth(server='ldap',
                 if manage_user:
                     result = con.search_s(dn, ldap.SCOPE_BASE,
                                           "(objectClass=*)",
-                                          [user_firstname_attrib, user_lastname_attrib, user_mail_attrib])[0][1]
+                                          [user_middlename_attrib, user_firstname_attrib, user_lastname_attrib, user_mail_attrib])[0][1]
 
             if ldap_mode == 'company':
                 # no DNs or password needed to search directory
@@ -325,7 +335,7 @@ def ldap_auth(server='ldap',
                 # find the uid
                 attrs = ['uid']
                 if manage_user:
-                    attrs.extend([user_firstname_attrib, user_lastname_attrib, user_mail_attrib])
+                    attrs.extend([user_middlename_attrib, user_firstname_attrib, user_lastname_attrib, user_mail_attrib])
                 # perform the actual search
                 company_search_result = con.search_s(ldap_basedn,
                                                      ldap.SCOPE_SUBTREE,
@@ -401,26 +411,35 @@ def ldap_auth(server='ldap',
             if manage_user:
                 logger.info('[%s] Manage user data' % str(username))
                 try:
+                    user_middlename = result[user_middlename_attrib][0]
+                    if user_middlename_part is not None:
+                        store_user_middlename = result[user_middlename_attrib][0].split(to_bytes(' '), 2)[user_middlename_part]
+                    else:
+                        store_user_middlename = user_middlename
+                except (KeyError, IndexError) as e:
+                    store_user_middlename = None
+                try:
                     user_firstname = result[user_firstname_attrib][0]
                     if user_firstname_part is not None:
-                        store_user_firstname = result[user_firstname_attrib][0].split(to_bytes(' '), 1)[user_firstname_part]
+                        store_user_firstname = result[user_firstname_attrib][0].split(to_bytes(' '), 2)[user_firstname_part]
                     else:
                         store_user_firstname = user_firstname
-                except KeyError as e:
+                except (KeyError, IndexError) as e:
                     store_user_firstname = None
                 try:
                     user_lastname = result[user_lastname_attrib][0]
                     if user_lastname_part is not None:
-                        store_user_lastname = result[user_lastname_attrib][0].split(to_bytes(' '), 1)[user_lastname_part]
+                        store_user_lastname = result[user_lastname_attrib][0].split(to_bytes(' '), 2)[user_lastname_part]
                     else:
                         store_user_lastname = user_lastname
-                except KeyError as e:
+                except (KeyError, IndexError) as e:
                     store_user_lastname = None
                 try:
                     store_user_mail = result[user_mail_attrib][0]
                 except KeyError as e:
                     store_user_mail = None
-                update_or_insert_values = {'first_name': store_user_firstname,
+                update_or_insert_values = {'middle_name': store_user_middlename,
+                                           'first_name': store_user_firstname,
                                            'last_name': store_user_lastname,
                                            'email': store_user_mail,
                                            'username': username}
