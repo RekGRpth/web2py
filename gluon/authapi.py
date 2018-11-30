@@ -49,6 +49,7 @@ class AuthAPI(object):
         'logout_onlogout': None,
         'long_expiration': 3600 * 24 * 30,
         'ondelete': 'CASCADE',
+        'onupdate': 'CASCADE',
         'password_field': 'password',
         'password_min_length': 4,
         'registration_requires_approval': False,
@@ -198,6 +199,7 @@ class AuthAPI(object):
             except:
                 return id
         ondelete = self.settings.ondelete
+        onupdate = self.settings.onupdate
         self.signature = Table(
             self.db, 'auth_signature',
             Field('is_active', 'boolean',
@@ -212,7 +214,7 @@ class AuthAPI(object):
                   reference_user,
                   default=lazy_user, represent=represent,
                   writable=False, readable=False,
-                  label=T('Created By'), ondelete=ondelete),
+                  label=T('Created By'), ondelete=ondelete, onupdate=onupdate),
             Field('modified_on', 'datetime',
                   update=request.now, default=request.now,
                   writable=False, readable=False,
@@ -221,7 +223,7 @@ class AuthAPI(object):
                   reference_user, represent=represent,
                   default=lazy_user, update=lazy_user,
                   writable=False, readable=False,
-                  label=T('Modified By'),  ondelete=ondelete))
+                  label=T('Modified By'), ondelete=ondelete, onupdate=onupdate))
 
     def define_tables(self, username=None, signature=None, migrate=None,
                       fake_migrate=None):

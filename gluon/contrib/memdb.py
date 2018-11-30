@@ -390,6 +390,7 @@ class Field(Expression):
         required=False,
         requires=sqlhtml_validators,
         ondelete='CASCADE',
+        onupdate='CASCADE',
         notnull=False,
         unique=False,
         uploadfield=True,
@@ -407,6 +408,7 @@ class Field(Expression):
         self.default = default  # default value for field
         self.required = required  # is this field required
         self.ondelete = ondelete.upper()  # this is for reference fields only
+        self.onupdate = onupdate.upper()  # this is for reference fields only
         self.notnull = notnull
         self.unique = unique
         self.uploadfield = uploadfield
