@@ -818,8 +818,8 @@ class AutocompleteWidget(object):
                     $('#%(key3)s').val('');
                     var e=e_.which?e_.which:e_.keyCode;
                     function %(u)s(){
-                        $('#%(id)s').val($('#%(key)s :selected').text());
-                        $('#%(key3)s').val($('#%(key)s').val())
+                        $('#%(id)s').val($('#%(key)s option:selected').text());
+                        $('#%(key3)s').val($('#%(key)s option:selected').val())
                     };
                     if(e==39) %(u)s();
                     else if(e==40) {
@@ -840,7 +840,7 @@ class AutocompleteWidget(object):
                                     $('#%(id)s').next('.error').hide();
                                     $('#%(div_id)s').html(data).show().focus();
                                     $('#%(div_id)s select').css('width',$('#%(id)s').css('width'));
-                                    $('#%(key3)s').val($('#%(key)s').val());
+                                    $('#%(key3)s').val($('#%(key)s option:selected').val());
                                     $('#%(key)s').change(%(u)s).click(%(u)s);
                                 };
                             });
@@ -871,7 +871,7 @@ class AutocompleteWidget(object):
             function doit(e_) {
                 var e=e_.which?e_.which:e_.keyCode;
                 function %(u)s(){
-                    $('#%(id)s').val($('#%(key)s').val())
+                    $('#%(id)s').val($('#%(key)s option:selected').val())
                 };
                 if(e==39) %(u)s();
                 else if(e==40) {
@@ -1929,23 +1929,10 @@ class SQLFORM(FORM):
                     fields[fieldname] = [safe_int(
                         x) for x in (value and [value] or [])]
             elif field.type == 'integer':
-                if value is not None:
-                    fields[fieldname] = safe_int(value)
+                fields[fieldname] = safe_int(value, None)
             elif field.type.startswith('reference'):
-                ## Avoid "constraint violation" exception when you have a
-                ## optional reference field without the dropdown in form. I.e.,
-                ## a field with code to be typed, in a data-entry form.
-                ##
-                ## When your reference field doesn't have IS_EMPTY_OR()
-                ## validator, "value" will come here as a string. So,
-                ## safe_int() will return 0. In this case, insert will raise
-                ## the constraint violation because there's no id=0 in
-                ## referenced table.
                 if isinstance(self.table, Table) and not keyed:
-                    if not value:
-                        fields[fieldname] = None
-                    else:
-                        fields[fieldname] = safe_int(value)
+                    fields[fieldname] = safe_int(value, None)
             elif field.type == 'double':
                 if value is not None:
                     fields[fieldname] = safe_float(value)

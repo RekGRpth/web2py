@@ -37,7 +37,7 @@ logger = logging.getLogger("web2py")
 
 if not PY2:
     def execfile(filename, global_vars=None, local_vars=None):
-        with open(filename, encoding='UTF-8') as f:
+        with open(filename, "rb", encoding='UTF-8') as f:
             code = compile(f.read(), filename, 'exec')
             exec(code, global_vars, local_vars)
     raw_input = input
