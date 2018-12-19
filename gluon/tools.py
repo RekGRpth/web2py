@@ -2548,7 +2548,7 @@ class Auth(AuthAPI):
 
             if settings.remember_me_form:
                 extra_fields = [
-                    Field('remember_me', 'boolean', default=False,
+                    Field('remember_me', 'boolean', default=True,
                           label=self.messages.label_remember_me)]
             else:
                 extra_fields = []
