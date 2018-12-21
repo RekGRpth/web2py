@@ -11,7 +11,7 @@ Support for smart import syntax for web2py applications
 from gluon._compat import builtin, unicodeT, PY2, to_native, reload
 import os
 import sys
-import threading
+import multiprocessing_utils
 from gluon import current
 
 NATIVE_IMPORTER = builtin.__import__
@@ -117,7 +117,7 @@ class TrackImporter(object):
     they are changed.
     """
 
-    THREAD_LOCAL = threading.local()
+    THREAD_LOCAL = multiprocessing_utils.local()
     PACKAGE_PATH_SUFFIX = os.path.sep + "__init__.py"
 
     def __init__(self):

@@ -612,7 +612,7 @@ import time
 import socket
 import logging
 import traceback
-from threading import Lock
+from multiprocessing_utils import SharedLock as Lock
 try:
     from queue import Queue
 except ImportError:

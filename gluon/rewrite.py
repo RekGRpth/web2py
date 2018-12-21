@@ -21,7 +21,7 @@ import os
 import re
 import logging
 import traceback
-import threading
+import multiprocessing_utils
 from gluon.storage import Storage, List
 from gluon.http import HTTP
 from gluon.fileutils import abspath, read_file
@@ -34,7 +34,7 @@ exists = os.path.exists
 pjoin = os.path.join
 
 logger = logging.getLogger('web2py.rewrite')
-THREAD_LOCAL = threading.local()  # thread-local storage for routing params
+THREAD_LOCAL = multiprocessing_utils.local()  # thread-local storage for routing params
 
 regex_at = re.compile(r'(?<!\\)\$[a-zA-Z]\w*')
 regex_anything = re.compile(r'(?<!\\)\$anything')
