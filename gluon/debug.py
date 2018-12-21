@@ -90,7 +90,7 @@ def communicate(command=None):
 # New debugger implementation using dbg and a web UI
 
 import gluon.contrib.dbg as c_dbg
-from multiprocessing_utils import SharedRLock as RLock
+from threading import RLock
 
 interact_lock = RLock()
 run_lock = RLock()

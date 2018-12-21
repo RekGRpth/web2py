@@ -10,7 +10,7 @@ This file specifically includes utilities for security.
 --------------------------------------------------------
 """
 
-import multiprocessing_utils
+import threading
 import struct
 import uuid
 import random
@@ -330,7 +330,7 @@ This is not specific to web2py; consider deploying on a different operating syst
 UNPACKED_CTOKENS, HAVE_URANDOM = initialize_urandom()
 
 
-def fast_urandom16(urandom=[], locker=multiprocessing_utils.SharedRLock()):
+def fast_urandom16(urandom=[], locker=threading.RLock()):
     """
     This is 4x faster than calling os.urandom(16) and prevents
     the "too many files open" issue with concurrent access to os.urandom()

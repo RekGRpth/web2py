@@ -311,8 +311,7 @@ def wsgibase(environ, responder):
       - file and sub may also contain '-', '=', '.' and '/'
     """
     eget = environ.get
-#    current.__dict__.clear()
-    [current._local.__dict__.pop(k) for k in list(current._local.__dict__.keys()) if k != '_pid']
+    current.__dict__.clear()
     request = Request(environ)
     response = Response()
     session = Session()

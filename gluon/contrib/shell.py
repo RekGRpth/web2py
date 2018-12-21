@@ -35,8 +35,8 @@ import new
 import sys
 import traceback
 import types
-import multiprocessing_utils
-locker = multiprocessing_utils.SharedRLock()
+import threading
+locker = threading.RLock()
 
 # Set to True if stack traces should be shown in the browser, etc.
 _DEBUG = True

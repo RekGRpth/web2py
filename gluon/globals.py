@@ -37,7 +37,7 @@ import re
 import os
 import sys
 import traceback
-import multiprocessing_utils
+import threading
 import cgi
 import copy
 import tempfile
@@ -60,7 +60,7 @@ regex_session_id = re.compile('^([\w\-]+/)?[\w\-\.]+$')
 
 __all__ = ['Request', 'Response', 'Session']
 
-current = multiprocessing_utils.local()  # thread-local storage for request-scope globals
+current = threading.local()  # thread-local storage for request-scope globals
 
 css_template = '<link href="%s" rel="stylesheet" type="text/css" />'
 js_template = '<script src="%s" type="text/javascript"></script>'

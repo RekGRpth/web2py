@@ -20,7 +20,7 @@ try:
     from html import escape
 except ImportError:
     from cgi import escape
-from multiprocessing_utils import SharedRLock as RLock
+from threading import RLock
 
 from gluon.utils import local_html_escape
 
