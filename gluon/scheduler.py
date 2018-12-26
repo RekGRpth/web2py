@@ -1254,6 +1254,9 @@ class Scheduler(MetaScheduler):
             self.db_thread = None
 #            logger.error('OperationalError')
             logger.exception(exception)
+        except BrokenPipeError as exception:
+            logger.exception(exception)
+            self.die()
         except Exception as exception:
             logger.error('Error retrieving status')
             logger.exception(exception)
