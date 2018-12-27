@@ -473,6 +473,7 @@ def executor(queue, task, out):
             os.chdir(os.environ['WEB2PY_PATH'])
             from gluon.shell import env, parse_path_info
             from gluon import current
+            current.__dict__.clear()
             level = logging.getLogger().getEffectiveLevel()
             logging.getLogger().setLevel(logging.WARN)
             # Get controller-specific subdirectory if task.app is of
