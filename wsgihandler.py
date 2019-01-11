@@ -15,7 +15,7 @@ import sys
 import os
 
 # change these parameters as required
-LOGGING = True
+LOGGING = False
 SOFTCRON = False
 
 
