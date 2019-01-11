@@ -16,10 +16,7 @@ import re
 import sys
 import pkgutil
 import logging
-try:
-    from html import escape
-except ImportError:
-    from cgi import escape
+from cgi import escape
 from threading import RLock
 
 from gluon.utils import local_html_escape
