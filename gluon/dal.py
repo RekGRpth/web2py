@@ -129,12 +129,12 @@ if not DRIVERS.get('pymysql'):
         DRIVERS['pymysql'] = pymysql
     except:
         pass
-#if not DRIVERS.get('pyodbc'):
-#    try:
-#        from .contrib import pypyodbc as pyodbc
-#        DRIVERS['pyodbc'] = pyodbc
-#    except:
-#        pass
+if not DRIVERS.get('pyodbc'):
+    try:
+        from .contrib import pypyodbc as pyodbc
+        DRIVERS['pyodbc'] = pyodbc
+    except:
+        pass
 if not DRIVERS.get('pg8000'):
     try:
         from .contrib import pg8000
