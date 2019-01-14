@@ -738,7 +738,7 @@ class Scheduler(MetaScheduler):
 
     def __init__(self, db, tasks=None, migrate=True,
                  worker_name=None, group_names=None, heartbeat=HEARTBEAT,
-                 max_empty_runs=0, discard_results=False, utc_time=False):
+                 max_empty_runs=0, discard_results=False, utc_time=False, max_total_runs=0):
 
         MetaScheduler.__init__(self)
 
@@ -749,6 +749,7 @@ class Scheduler(MetaScheduler):
         self.heartbeat = heartbeat
         self.worker_name = worker_name or IDENTIFIER
         self.max_empty_runs = max_empty_runs
+        self.max_total_runs = max_total_runs
         self.discard_results = discard_results
         self.is_a_ticker = False
         self.do_assign_tasks = False
@@ -926,6 +927,14 @@ class Scheduler(MetaScheduler):
                         if self.w_stats.empty_runs >= self.max_empty_runs:
                             logger.info(
                                 'empty runs limit reached, killing myself')
+                            self.die()
+                    if self.max_total_runs != 0:
+                        logger.debug('total runs %s/%s',
+                                     self.w_stats.total,
+                                     self.max_total_runs)
+                        if self.w_stats.total >= self.max_total_runs:
+                            logger.info(
+                                'total runs limit reached, killing myself')
                             self.die()
                     self.sleep()
         except (KeyboardInterrupt, SystemExit):
