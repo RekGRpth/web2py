@@ -1435,8 +1435,8 @@ class Scheduler(MetaScheduler):
                         wkgroups[gname]['workers'][myw]['c'] += 1
             db.commit()
         # I didn't report tasks but I'm working nonetheless!!!!
-        if x > 0:
-            self.w_stats.empty_runs = 0
+#        if x > 0:
+#            self.w_stats.empty_runs = 0
         self.w_stats.queue = x
         self.w_stats.distribution = wkgroups
         self.w_stats.workers = len(all_workers)
