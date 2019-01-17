@@ -10,7 +10,7 @@ License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
 This is a WSGI handler
 """
 
-import ldap
+#import ldap
 import sys
 import os
 
