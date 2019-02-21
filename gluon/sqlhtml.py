@@ -719,7 +719,7 @@ class AutocompleteWidget(object):
                             compact=table_rows.compact)
             elif settings and settings.global_settings.web2py_runtime_gae:
                 rows = self.db(field.__ge__(kword) &
-                               field.__lt__(kword + u'\ufffd')
+                               field.__lt__(kword + '\ufffd')
                                ).select(orderby=self.orderby,
                                         limitby=self.limitby,
                                         *(self.fields + self.help_fields))
@@ -1983,7 +1983,7 @@ class SQLFORM(FORM):
 
     AUTOTYPES = {
         type(''): ('string', None),
-        type(u''): ('string',None),
+        type(''): ('string',None),
         type(True): ('boolean', None),
         type(1): ('integer', IS_INT_IN_RANGE(-1e12, +1e12)),
         type(1.0): ('double', IS_FLOAT_IN_RANGE()),
@@ -2482,11 +2482,6 @@ class SQLFORM(FORM):
                 tablenames = merge_tablemaps(tablenames, db._adapter.tables(join))
         tables = [db[tablename] for tablename in tablenames]
         if fields:
-            # add missing tablename to virtual fields
-            for table in tables:
-                for k, f in iteritems(table):
-                    if isinstance(f, Field.Virtual):
-                        f.tablename = table._tablename
             columns = [f for f in fields if f.tablename in tablenames and f.listable]
         else:
             fields = []
@@ -2494,8 +2489,8 @@ class SQLFORM(FORM):
             filter1 = lambda f: isinstance(f, Field) and (f.type!='blob' or showblobs)
             filter2 = lambda f: isinstance(f, Field) and f.readable and f.listable
             for table in tables:
-                fields += filter(filter1, table)
-                columns += filter(filter2, table)
+                fields += list(filter(filter1, table))
+                columns += list(filter(filter2, table))
                 for k, f in iteritems(table):
                     if not k.startswith('_'):
                         if isinstance(f, Field.Virtual) and f.readable:
@@ -2581,7 +2576,7 @@ class SQLFORM(FORM):
             table = db[request.args[-2]]
             record = table(request.args[-1]) or redirect(referrer)
             if represent_none is not None:
-                for field in record.iterkeys():
+                for field in record.keys():
                     if record[field] is None:
                         record[field] = represent_none
             sqlformargs = dict(upload=upload, ignore_rw=ignore_rw,
@@ -2708,7 +2703,7 @@ class SQLFORM(FORM):
                         # the query should be constructed using searchable
                         # fields but not virtual fields
                         is_searchable = lambda f: f.readable and not isinstance(f, Field.Virtual) and f.searchable
-                        sfields = reduce(lambda a, b: a + b, [filter(is_searchable, t) for t in tables])
+                        sfields = reduce(lambda a, b: a + b, [list(filter(is_searchable, t)) for t in tables])
                         # use custom_query using searchable
                         if callable(searchable):
                             dbset = dbset(searchable(sfields, keywords))
@@ -2716,13 +2711,13 @@ class SQLFORM(FORM):
                             dbset = dbset(SQLFORM.build_query(
                                 sfields, keywords))
                         rows = dbset.select(left=left, orderby=orderby,
-                                            cacheable=True, *expcolumns)
+                                            cacheable=True, *selectable_columns)
                     except Exception as e:
                         response.flash = T('Internal Error')
                         rows = []
                 else:
                     rows = dbset.select(left=left, orderby=orderby,
-                                        cacheable=True, *expcolumns)
+                                        cacheable=True, *selectable_columns)
 
                 value = exportManager[export_type]
                 clazz = value[0] if hasattr(value, '__getitem__') else value
@@ -2969,7 +2964,7 @@ class SQLFORM(FORM):
                 paginator.append(LI(self_link('<<', 0)))
             if page > NPAGES:
                 paginator.append(LI(self_link('<', page - 1)))
-            pages = range(max(0, page - NPAGES), min(page + NPAGES, npages))
+            pages = list(range(max(0, page - NPAGES), min(page + NPAGES, npages)))
             for p in pages:
                 if p == page:
                     paginator.append(LI(A(p + 1, _onclick='return false'),
@@ -3457,16 +3452,22 @@ class SQLTABLE(TABLE):
         (components, row) = (self.components, [])
         if not sqlrows:
             return
-        REGEX_TABLE_DOT_FIELD = sqlrows.db._adapter.REGEX_TABLE_DOT_FIELD
-        fieldmap = dict(zip(sqlrows.colnames, sqlrows.fields))
-        tablemap = dict(((f.tablename, f.table) if isinstance(f, Field) else (f._table._tablename, f._table) for f in fieldmap.values()))
-        for table in tablemap.values():
-            pref = table._tablename + '.'
-            fieldmap.update(((pref+f.name, f) for f in table._virtual_fields))
-            fieldmap.update(((pref+f.name, f) for f in table._virtual_methods))
-        field_types = (Field, Field.Virtual, Field.Method)
-        if not columns:
+        fieldlist = sqlrows.colnames_fields
+        fieldmap = dict(zip(sqlrows.colnames, fieldlist))
+        if columns:
+            tablenames = []
+            for colname, field in fieldmap.iteritems():
+                if isinstance(field, (Field, Field.Virtual)):
+                    tablenames.append(field.tablename)
+                elif isinstance(field, Expression):
+                    tablenames.append(field._table._tablename)
+            for tablename in set(tablenames):
+                table = sqlrows.db[tablename]
+                fieldmap.update((("%s.%s" % (tablename, f.name), f) for f in table._virtual_fields + table._virtual_methods))
+        else:
             columns = list(sqlrows.colnames)
+        field_types = (Field, Field.Virtual, Field.Method)
+
         header_func = {
             'fieldname:capitalize': lambda f: f.name.replace('_', ' ').title(),
             'labels': lambda f: f.label

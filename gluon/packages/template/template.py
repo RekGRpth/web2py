@@ -6,6 +6,7 @@
 | License: LGPLv3 (http://www.gnu.org/licenses/lgpl.html)
 """
 
+import unittest
 import logging
 import os
 import sys
@@ -43,12 +44,9 @@ DEFAULT_DELIMITERS = ('{{', '}}')
 
 
 def file_reader(filename, mode='rb'):
-    try:
-        with open(filename, mode) as fp:
-            body = fp.read()
+    with open(filename, mode) as fp:
+        body = fp.read()
         return body
-    except IOError:
-        raise RestrictedError(filename, '', 'Unable to find the file')
 
 try:
     # have web2py
@@ -287,7 +285,7 @@ class TemplateParser(object):
         # Raw text to start parsing.
         self.text = text
         # use the default reader
-        self.reader = reader or file_reader
+        self.reader = reader or file_reader 
         # Writer to use (refer to the default for an example).
         # This will end up as
         # "%s(%s, escape=False)" % (self.writer, value)
@@ -948,12 +946,12 @@ def render(content=None,
             content = '(no template found)'
 
     # Execute the template.
-    code = str(TemplateParser(text=content,
-                              context=context,
-                              path=path,
-                              lexers=lexers,
-                              delimiters=delimiters,
-                              writer=writer,
+    code = str(TemplateParser(text=content,                              
+                              context=context, 
+                              path=path, 
+                              lexers=lexers, 
+                              delimiters=delimiters, 
+                              writer=writer, 
                               reader=reader))
 
     try:
@@ -990,7 +988,7 @@ class template(object):
                     body = self.reader(filename)
                 return render(
                     content=body,
-                    path=self.path,
+                    path=self.path, 
                     lexers=self.lexers,
                     delimiters=self.delimiters,
                     context=context,
@@ -998,3 +996,4 @@ class template(object):
             else:
                 return context
         return wrapper
+

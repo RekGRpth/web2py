@@ -16,7 +16,6 @@ import datetime
 import time
 import cgi
 import json
-import urllib
 import struct
 import decimal
 import unicodedata
@@ -437,7 +436,7 @@ class IS_IN_SET(Validator):
         self.multiple = multiple
         if isinstance(theset, dict):
             self.theset = [str(item) for item in theset]
-            self.labels = theset.values()
+            self.labels = list(theset.values())
         elif theset and isinstance(theset, (tuple, list)) \
                 and isinstance(theset[0], (tuple, list)) and len(theset[0]) == 2:
             self.theset = [str(item) for item, label in theset]
@@ -483,8 +482,8 @@ class IS_IN_SET(Validator):
         return (value, None)
 
 
-regex1 = re.compile('\w+\.\w+')
-regex2 = re.compile('%\(([^\)]+)\)\d*(?:\.\d+)?[a-zA-Z]')
+regex1 = re.compile(r'\w+\.\w+')
+regex2 = re.compile(r'%\(([^\)]+)\)\d*(?:\.\d+)?[a-zA-Z]')
 
 
 class IS_IN_DB(Validator):
@@ -575,7 +574,7 @@ class IS_IN_DB(Validator):
         else:
             fields = [table[k] for k in self.fieldnames]
         ignore = (FieldVirtual, FieldMethod)
-        fields = filter(lambda f: not isinstance(f, ignore), fields)
+        fields = [f for f in fields if not isinstance(f, ignore)]
         if self.dbset.db._dbname != 'gae':
             orderby = self.orderby or reduce(lambda a, b: a | b, fields)
             groupby = self.groupby
@@ -649,7 +648,7 @@ class IS_IN_DB(Validator):
                     return (values, None)
             else:
                 def count(values, s=self.dbset, f=field):
-                    return s(f.belongs(map(int, values))).count()
+                    return s(f.belongs(list(map(int, values)))).count()
 
                 if self.dbset.db._adapter.dbengine == "google:datastore":
                     range_ids = range(0, len(values), 30)
@@ -1158,7 +1157,7 @@ class IS_EMAIL(Validator):
 
     """
 
-    body_regex = re.compile('''
+    body_regex = re.compile(r'''
         ^(?!\.)                            # name may not begin with a dot
         (
           [-a-z0-9!\#$%&'*+/=?^_`{|}~]     # all legal characters except dot
@@ -1167,7 +1166,7 @@ class IS_EMAIL(Validator):
         )+
         (?<!\.)$                            # name may not end with a dot
     ''', re.VERBOSE | re.IGNORECASE)
-    domain_regex = re.compile('''
+    domain_regex = re.compile(r'''
         (
           localhost
           |
@@ -1184,7 +1183,7 @@ class IS_EMAIL(Validator):
        )$
     ''', re.VERBOSE | re.IGNORECASE)
 
-    regex_proposed_but_failed = re.compile('^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,6})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$', re.VERBOSE | re.IGNORECASE)
+    regex_proposed_but_failed = re.compile(r'^([\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+\.)*[\w\!\#$\%\&\'\*\+\-\/\=\?\^\`{\|\}\~]+@((((([a-z0-9]{1}[a-z0-9\-]{0,62}[a-z0-9]{1})|[a-z])\.)+[a-z]{2,6})|(\d{1,3}\.){3}\d{1,3}(\:\d{1,5})?)$', re.VERBOSE | re.IGNORECASE)
 
     def __init__(self,
                  banned=None,
@@ -1997,8 +1996,8 @@ class IS_HTTP_URL(Validator):
     """
 
     GENERIC_VALID_IP = re.compile(
-        "([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$")
-    GENERIC_VALID_DOMAIN = re.compile("([\w.!~*'|;:&=+$,-]+@)?(([A-Za-z0-9]+[A-Za-z0-9\-]*[A-Za-z0-9]+\.)*([A-Za-z0-9]+\.)*)*([A-Za-z]+[A-Za-z0-9\-]*[A-Za-z0-9]+)\.?(:\d*)*$")
+        r"([\w.!~*'|;:&=+$,-]+@)?\d+\.\d+\.\d+\.\d+(:\d*)*$")
+    GENERIC_VALID_DOMAIN = re.compile(r"([\w.!~*'|;:&=+$,-]+@)?(([A-Za-z0-9]+[A-Za-z0-9\-]*[A-Za-z0-9]+\.)*([A-Za-z0-9]+\.)*)*([A-Za-z]+[A-Za-z0-9\-]*[A-Za-z0-9]+)\.?(:\d*)*$")
 
     def __init__(
         self,
@@ -2568,7 +2567,7 @@ class IS_DATETIME_IN_RANGE(IS_DATETIME):
 
 class IS_LIST_OF(Validator):
 
-    def __init__(self, other=None, minimum=None, maximum=None, error_message=None):                 
+    def __init__(self, other=None, minimum=None, maximum=None, error_message=None):
         self.other = other
         self.minimum = minimum
         self.maximum = maximum
@@ -3164,6 +3163,10 @@ class IS_STRONG(object):
                 if not all_special.count(True) >= self.special:
                     failures.append(translate("Must include at least %s of the following: %s")
                                     % (self.special, self.specials))
+            elif self.special is 0:
+                if len(all_special) > 0:
+                    failures.append(translate("May not contain any of the following: %s")
+                                    % self.specials)
         if self.invalid:
             all_invalid = [ch in value for ch in self.invalid]
             if all_invalid.count(True) > 0:
@@ -3175,7 +3178,7 @@ class IS_STRONG(object):
                 if not len(all_upper) >= self.upper:
                     failures.append(translate("Must include at least %s uppercase")
                                     % str(self.upper))
-            else:
+            elif self.upper is 0:
                 if len(all_upper) > 0:
                     failures.append(
                         translate("May not include any uppercase letters"))
@@ -3185,7 +3188,7 @@ class IS_STRONG(object):
                 if not len(all_lower) >= self.lower:
                     failures.append(translate("Must include at least %s lowercase")
                                     % str(self.lower))
-            else:
+            elif self.lower is 0:
                 if len(all_lower) > 0:
                     failures.append(
                         translate("May not include any lowercase letters"))
@@ -3198,7 +3201,7 @@ class IS_STRONG(object):
                 if not len(all_number) >= self.number:
                     failures.append(translate("Must include at least %s %s")
                                     % (str(self.number), numbers))
-            else:
+            elif self.number is 0:
                 if len(all_number) > 0:
                     failures.append(translate("May not include any numbers"))
         if len(failures) == 0:
@@ -3513,7 +3516,7 @@ class IS_IPV4(Validator):
     """
 
     regex = re.compile(
-        '^(([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])\.){3}([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])$')
+        r'^(([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])\.){3}([1-9]?\d|1\d\d|2[0-4]\d|25[0-5])$')
     numbers = (16777216, 65536, 256, 1)
     localhost = 2130706433
     private = ((2886729728, 2886795263), (3232235520, 3232301055))
@@ -3533,7 +3536,7 @@ class IS_IPV4(Validator):
             if isinstance(value, str):
                 temp.append(value.split('.'))
             elif isinstance(value, (list, tuple)):
-                if len(value) == len(list(filter(lambda item: isinstance(item, int), value))) == 4:
+                if len(value) == len([item for item in value if isinstance(item, int)]) == 4:
                     temp.append(value)
                 else:
                     for item in value:

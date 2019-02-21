@@ -4,7 +4,7 @@
 """
     Unit tests for gluon.sqlhtml
 """
-from __future__ import print_function
+
 import os
 import sys
 import unittest
@@ -196,4 +196,3 @@ class TestAppAdmin(unittest.TestCase):
         data['id'] = '1'
         request._vars = data
         self.assertRaises(HTTP, self.run_function)
-

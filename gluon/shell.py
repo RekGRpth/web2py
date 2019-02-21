@@ -10,6 +10,7 @@
 Web2py environment in the shell
 --------------------------------
 """
+
 from __future__ import print_function
 
 import os
@@ -95,7 +96,7 @@ def exec_environment(
     if pyfile:
         pycfile = pyfile + 'c'
         if os.path.isfile(pycfile):
-            exec (read_pyc(pycfile), env)
+            exec(read_pyc(pycfile), env)
         else:
             execfile(pyfile, env)
     return Storage(env)
@@ -210,7 +211,7 @@ def run(
     - a/c : exec the controller c into the application environment
     """
 
-    (a, c, f, args, vars) = parse_path_info(appname, av=True)    
+    (a, c, f, args, vars) = parse_path_info(appname, av=True)
     errmsg = 'invalid application name: %s' % appname
     if not a:
         die(errmsg)
