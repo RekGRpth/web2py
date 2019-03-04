@@ -3,4 +3,4 @@
 	url = git@github.com:RekGRpth/pydal.git
 [submodule "gluon/packages/yatl"]
 	path = gluon/packages/yatl
-	url = https://github.com/web2py/yatl
+	url = git@github.com:RekGRpth/yatl.git
