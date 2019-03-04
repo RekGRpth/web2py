@@ -3316,6 +3316,8 @@ class SQLFORM(FORM):
             if isinstance(kwargs.get(key, None), dict):
                 if table._tablename in kwargs[key]:
                     kwargs[key] = kwargs[key][table._tablename]
+                elif '*' in kwargs[key]:
+                    kwargs[key] = kwargs[key]['*']
                 else:
                     del kwargs[key]
         check = {}
@@ -3456,7 +3458,7 @@ class SQLTABLE(TABLE):
         fieldmap = dict(zip(sqlrows.colnames, fieldlist))
         if columns:
             tablenames = []
-            for colname, field in fieldmap.iteritems():
+            for colname, field in fieldmap.items():
                 if isinstance(field, (Field, Field.Virtual)):
                     tablenames.append(field.tablename)
                 elif isinstance(field, Expression):
