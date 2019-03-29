@@ -815,8 +815,11 @@ def edit():
 
     if len(request.args) > 2 and request.args[1] == 'controllers':
         controller = (request.args[2])[:-3]
-        functions = find_exposed_functions(data)
-        functions = functions and sorted(functions) or []
+        try:
+            functions = find_exposed_functions(data)
+            functions = functions and sorted(functions) or []
+        except SyntaxError as err:
+            functions = ['SyntaxError:Line:%d' % err.lineno]
     else:
         (controller, functions) = (None, None)
 
@@ -1128,8 +1131,11 @@ def design():
     functions = {}
     for c in controllers:
         data = safe_read(apath('%s/controllers/%s' % (app, c), r=request))
-        items = find_exposed_functions(data)
-        functions[c] = items and sorted(items) or []
+        try:
+            items = find_exposed_functions(data)
+            functions[c] = items and sorted(items) or []
+        except SyntaxError as err:
+            functions[c] = ['SyntaxError:Line:%d' % err.lineno]
 
     # Get all views
     views = sorted(
@@ -1266,8 +1272,11 @@ def plugin():
     functions = {}
     for c in controllers:
         data = safe_read(apath('%s/controllers/%s' % (app, c), r=request))
-        items = find_exposed_functions(data)
-        functions[c] = items and sorted(items) or []
+        try:
+            items = find_exposed_functions(data)
+            functions[c] = items and sorted(items) or []
+        except SyntaxError as err:
+            functions[c] = ['SyntaxError:Line:%d' % err.lineno]
 
     # Get all views
     views = sorted(
