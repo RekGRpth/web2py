@@ -9,7 +9,6 @@ The widget is called from web2py
 ----------------------------------
 """
 
-import datetime
 import sys
 from gluon._compat import StringIO, thread, xrange, PY2
 import time
@@ -23,7 +22,6 @@ import logging
 import getpass
 from gluon import main, newcron
 
-
 from gluon.fileutils import read_file, write_file, create_welcome_w2p
 from gluon.settings import global_settings
 from gluon.shell import run, test
@@ -35,17 +33,13 @@ if PY2:
 
 ProgramName = 'web2py Web Framework'
 ProgramAuthor = 'Created by Massimo Di Pierro, Copyright 2007-' + str(
-    datetime.datetime.now().year)
-ProgramVersion = read_file('VERSION').strip()
+    time.localtime().tm_year)
+ProgramVersion = read_file('VERSION').rstrip()
 
-ProgramInfo = '''%s
-                 %s
-                 %s''' % (ProgramName, ProgramAuthor, ProgramVersion)
-
-if sys.version_info < (2, 7) and (3, 0) < sys.version_info < (3, 5):
-    msg = 'Warning: web2py requires at least Python 2.7/3.5 but you are running:\n%s'
-    msg = msg % sys.version
-    sys.stderr.write(msg)
+if sys.version_info < (2, 7) or (3, 0) < sys.version_info < (3, 5):
+    from platform import python_version
+    sys.stderr.write("Warning: web2py requires at least Python 2.7/3.5"
+        " but you are running %s\n" % python_version())
 
 logger = logging.getLogger("web2py")
 
@@ -54,51 +48,38 @@ def run_system_tests(options):
     """
     Runs unittests for gluon.tests
     """
-    import subprocess
-    major_version = sys.version_info[0]
-    call_args = [sys.executable, '-m', 'unittest', '-v', 'gluon.tests']
-    if major_version == 2:
-        sys.stderr.write("Python 2.7\n")
-    else:
-        sys.stderr.write("Experimental Python 3.x.\n")
+    # see "python -m unittest -h" for unittest options help
+    # NOTE: someone might be interested either in using the
+    #       -f (--failfast) option to stop testing on first failure, or
+    #       in customizing the test selection, for example to run only
+    #       'gluon.tests.<module>', 'gluon.tests.<module>.<class>' (this
+    #       could be shortened as 'gluon.tests.<class>'), or even
+    #       'gluon.tests.<module>.<class>.<method>' (or
+    #       the shorter 'gluon.tests.<class>.<method>')
+    call_args = ['-m', 'unittest', '-c', 'gluon.tests']
+    if options.verbose:
+        call_args.insert(-1, '-v')
     if options.with_coverage:
-        has_coverage = False
-        coverage_exec = 'coverage2' if major_version == 2 else 'coverage3'
         try:
             import coverage
-            has_coverage = True
         except:
-            sys.stderr.write('Coverage was not installed, skipping\n')
+            sys.stderr.write('Coverage was not installed\n')
+            sys.exit(1)
+    if not PY2:
+        sys.stderr.write('Experimental ')
+    sys.stderr.write("Python %s\n" % sys.version)
+    if options.with_coverage:
+        coverage_exec = 'coverage2' if PY2 else 'coverage3'
         coverage_config_file = os.path.join('gluon', 'tests', 'coverage.ini')
         coverage_config = os.environ.setdefault("COVERAGE_PROCESS_START",
                                                 coverage_config_file)
-        call_args = [coverage_exec, 'run', '--rcfile=%s' %
-                     coverage_config, '-m', 'unittest', '-v', 'gluon.tests']
-        if has_coverage:
-            ret = subprocess.call(call_args)
-        else:
-            ret = 256
+        run_args = [coverage_exec, 'run', '--rcfile=%s' % coverage_config]
+        # replace the current process
+        os.execvpe(run_args[0], run_args + call_args, os.environ)
     else:
-        ret = subprocess.call(call_args)
-    sys.exit(ret and 1)
-
-
-class IO(object):
-    """   """
-
-    def __init__(self):
-        """   """
-
-        self.buffer = StringIO()
-
-    def write(self, data):
-        """   """
-
-        sys.__stdout__.write(data)
-        if hasattr(self, 'callback'):
-            self.callback(data)
-        else:
-            self.buffer.write(data)
+        run_args = [sys.executable]
+        # replace the current process
+        os.execv(run_args[0], run_args + call_args)
 
 
 def get_url(host, path='/', proto='http', port=80):
@@ -186,6 +167,9 @@ class web2pyDialog(object):
                              command=item)
 
         # About
+        ProgramInfo = """%s
+                 %s
+                 %s""" % (ProgramName, ProgramAuthor, ProgramVersion)
         item = lambda: messagebox.showinfo('About web2py', ProgramInfo)
         helpmenu.add_command(label='About',
                              command=item)
@@ -1012,7 +996,7 @@ def console():
                 options.interfaces.append(tuple(interface))
 
     #  accepts --scheduler in the form
-    #  "app:group1,group2,app2:group1"
+    #  "app:group1:group2,app2:group1"
     scheduler = []
     options.scheduler_groups = None
     if isinstance(options.scheduler, str):
