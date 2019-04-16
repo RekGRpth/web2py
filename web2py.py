@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-<<<<<<< HEAD
-#import ldap
-=======
 from __future__ import print_function
 
->>>>>>> upstream/master
 import os
 import sys
 from multiprocessing import freeze_support
