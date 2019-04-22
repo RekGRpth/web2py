@@ -216,6 +216,14 @@ class web2pyDialog(object):
         self.bannerarea.after(1000, self.update_canvas)
 
         # IP
+        # retrieves the list of server IP addresses
+        try:
+            if_ips = list(set(  # no duplicates
+                [addrinfo[4][0] for addrinfo in getipaddrinfo(socket.getfqdn())
+                 if not is_loopback_ip_address(addrinfo=addrinfo)]))
+        except socket.gaierror:
+            if_ips = []
+
         tkinter.Label(self.root,
                       text='Server IP:', bg=bg_color,
                       justify=tkinter.RIGHT).grid(row=4,
@@ -226,7 +234,7 @@ class web2pyDialog(object):
         row = 4
         ips = [('127.0.0.1', 'Local (IPv4)')] + \
             ([('::1', 'Local (IPv6)')] if socket.has_ipv6 else []) + \
-            [(ip, 'Public') for ip in options.ips] + \
+            [(ip, 'Public') for ip in if_ips] + \
             [('0.0.0.0', 'Public')]
         for ip, legend in ips:
             self.ips[ip] = tkinter.Radiobutton(
@@ -315,8 +323,8 @@ class web2pyDialog(object):
         if start:
             # the widget takes care of starting the scheduler
             if self.options.scheduler and self.options.with_scheduler:
-                apps = [app.strip() for app
-                        in self.options.scheduler.split(',')
+                apps = [app for app
+                        in map(lambda ag : ag.split(':', 1)[0].strip(), self.options.scheduler.split(','))
                         if app in available_apps]
         for app in apps:
             self.try_start_scheduler(app)
@@ -687,7 +695,7 @@ web2py will attempt to run a GUI to ask for it when starting the web server
                       action='store_true',
                       help='disable all output')
 
-    parser.add_option('-e', '--errors_to_console', dest='print_errors',
+    parser.add_option('-e', '--errors_to_console',
                       default=False,
                       action='store_true',
                       help='log all errors to console')
@@ -704,7 +712,7 @@ web2py will attempt to run a GUI to ask for it when starting the web server
                       metavar='APPNAME', help=\
         'run web2py in interactive shell or IPython (if installed) with ' \
         'specified appname (if app does not exist it will be created). ' \
-        'APPNAME like a/c/f?x=y (c,f and vars x,y optional)')
+        'APPNAME like a/c/f?x=y (c, f and vars optional)')
 
     parser.add_option('-B', '--bpython',
                       default=False,
@@ -752,7 +760,7 @@ web2py will attempt to run a GUI to ask for it when starting the web server
                       default=None,
                       metavar='TEST_PATH', help=\
         'run doctests in web2py environment; ' \
-        'TEST_PATH like a/c/f (c,f optional)')
+        'TEST_PATH like a/c/f (c, f optional)')
 
     parser.add_option('-C', '--cron', dest='extcron',
                       default=False,
@@ -777,7 +785,9 @@ web2py will attempt to run a GUI to ask for it when starting the web server
     parser.add_option('-J', '--cronjob',
                       default=False,
                       action='store_true',
-                      help='identify cron-initiated command')
+                      # NOTE: help suppressed because this option is
+                      #       intended for internal use only
+                      help=optparse.SUPPRESS_HELP)
 
     parser.add_option('-L', '--config',
                       default='',
@@ -826,11 +836,8 @@ web2py will attempt to run a GUI to ask for it when starting the web server
                       default=False,
                       action='store_true',
                       help=\
-        'adds coverage reporting (should be used with --run_system_tests), ' \
-        'needs Python 2.7+ and the coverage module installed. ' \
-        'You can alter the default path setting the environment ' \
-        'variable "COVERAGE_PROCESS_START" ' \
-        '(by default it takes gluon/tests/coverage.ini)')
+        'collect coverage data when used with --run_system_tests; ' \
+        'require Python 2.7+ and the coverage module installed')
 
     if '-A' in sys.argv:
         k = sys.argv.index('-A')
@@ -842,6 +849,10 @@ web2py will attempt to run a GUI to ask for it when starting the web server
     (options, args) = parser.parse_args()
     # TODO: warn or error if args (should be no unparsed arguments)
     options.args = other_args
+
+    if options.taskbar and os.name != 'nt':
+        # TODO: warn and disable taskbar instead of exit
+        die('taskbar not supported on this platform')
 
     if options.config.endswith('.py'):
         options.config = options.config[:-3]
@@ -855,20 +866,6 @@ web2py will attempt to run a GUI to ask for it when starting the web server
         for key in dir(options2):
             if hasattr(options, key):
                 setattr(options, key, getattr(options2, key))
-
-    # store in options.ips the list of server IP addresses
-    try:
-        options.ips = list(set(  # no duplicates
-            [addrinfo[4][0] for addrinfo in getipaddrinfo(socket.getfqdn())
-             if not is_loopback_ip_address(addrinfo=addrinfo)]))
-    except socket.gaierror:
-        options.ips = []
-
-    if options.cronjob:
-        global_settings.cronjob = True  # tell the world
-        options.plain = True    # cronjobs use a plain shell
-        options.nobanner = True
-        options.nogui = True
 
     # transform options.interfaces, in the form
     # "ip1:port1:key1:cert1:ca_cert1;[ip2]:port2;ip3:port3:key3:cert3"
@@ -890,17 +887,6 @@ web2py will attempt to run a GUI to ask for it when starting the web server
             interface[1] = int(interface[1])  # numeric port
             options.interfaces.append(tuple(interface))
 
-    # strip group infos from options.scheduler, in the form
-    # "app:group1:group2,app2:group1", and put into a list of lists
-    # in options.scheduler_groups
-    if options.scheduler and ':' in options.scheduler:
-        sg = options.scheduler_groups = []
-        for awg in options.scheduler.split(','):
-            sg.append(awg.split(':'))
-        options.scheduler = ','.join([app[0] for app in sg])
-    else:
-        options.scheduler_groups = None
-
     if options.numthreads is not None and options.minthreads is None:
         options.minthreads = options.numthreads  # legacy
 
@@ -916,18 +902,17 @@ def check_existent_app(options, appname):
         return True
 
 
-def get_code_for_scheduler(app, options):
-    if len(app) == 1 or app[1] is None:
-        code = "from gluon.globals import current;current._scheduler.loop()"
-    else:
-        code = "from gluon.globals import current;current._scheduler.group_names = ['%s'];"
-        code += "current._scheduler.loop()"
-        code = code % ("','".join(app[1:]))
-    app_ = app[0]
-    if not check_existent_app(options, app_):
-        print("Application '%s' doesn't exist, skipping" % app_)
+def get_code_for_scheduler(app_groups, options):
+    app = app_groups[0]
+    if not check_existent_app(options, app):
+        print("Application '%s' doesn't exist, skipping" % app)
         return None, None
-    return app_, code
+    code = 'from gluon.globals import current;'
+    if len(app_groups) > 1:
+        code += "current._scheduler.group_names=['%s'];" % "','".join(
+            app_groups[1:])
+    code += "current._scheduler.loop()"
+    return app, code
 
 
 def start_schedulers(options):
@@ -936,17 +921,16 @@ def start_schedulers(options):
     except:
         sys.stderr.write('Sorry, -K only supported for Python 2.6+\n')
         return
-    processes = []
-    apps = options.scheduler_groups or \
-        [(app.strip(), None) for app in options.scheduler.split(',')]
-    code = "from gluon.globals import current;current._scheduler.loop()"
     logging.getLogger().setLevel(options.debuglevel)
+
+    apps = [[n.strip() for n in sched_app.split(':')]
+            for sched_app in options.scheduler.split(',')]
     if len(apps) == 1 and not options.with_scheduler:
-        app_, code = get_code_for_scheduler(apps[0], options)
-        if not app_:
+        app, code = get_code_for_scheduler(apps[0], options)
+        if not app:
             return
-        print('starting single-scheduler for "%s"...' % app_)
-        run(app_, True, True, None, False, code)
+        print('starting single-scheduler for "%s"...' % app)
+        run(app, True, True, None, False, code)
         return
 
     # Work around OS X problem: http://bugs.python.org/issue9405
@@ -956,12 +940,13 @@ def start_schedulers(options):
         import urllib.request as urllib
     urllib.getproxies()
 
-    for app in apps:
-        app_, code = get_code_for_scheduler(app, options)
-        if not app_:
+    processes = []
+    for app_groups in apps:
+        app, code = get_code_for_scheduler(app_groups, options)
+        if not app:
             continue
-        print('starting scheduler for "%s"...' % app_)
-        args = (app_, True, True, None, False, code)
+        print('starting scheduler for "%s"...' % app)
+        args = (app, True, True, None, False, code)
         p = Process(target=run, args=args)
         processes.append(p)
         print("Currently running %s scheduler processes" % (len(processes)))
@@ -1059,8 +1044,9 @@ def start(cron=True):
         global_settings.web2py_crontype = 'external'
         if options.scheduler:
             # run cron for applications listed with --scheduler (-K)
-            apps = [app.strip() for app in options.scheduler.split(
-                ',') if check_existent_app(options, app.strip())]
+            apps = [app for app
+                    in map(lambda ag : ag.split(':', 1)[0].strip(), options.scheduler.split(','))
+                    if check_existent_app(options, app)]
         else:
             apps = None
         extcron = newcron.extcron(options.folder, apps=apps)
@@ -1089,11 +1075,6 @@ def start(cron=True):
     # if no password provided and have Tk library start GUI (when not
     # explicitly disabled), we also need a GUI to put in taskbar (system tray)
     # when requested
-
-    # FIXME: this check should be done first
-    if options.taskbar and os.name != 'nt':
-        die('taskbar not supported on this platform')
-
     root = None
 
     if (not options.nogui and options.password == '<ask>') or options.taskbar:
