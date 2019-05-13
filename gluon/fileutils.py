@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -19,6 +18,7 @@ import time
 import datetime
 import logging
 import shutil
+
 from gluon.http import HTTP
 from gzip import open as gzopen
 from gluon.recfile import generate
@@ -255,12 +255,23 @@ def w2p_pack(filename, path, compiled=False, filenames=None):
     os.unlink(tarname)
 
 
+def missing_app_folders(path):
+    for subfolder in ('models', 'views', 'controllers', 'databases',
+                      'modules', 'cron', 'errors', 'sessions',
+                      'languages', 'static', 'private', 'uploads'):
+        yield os.path.join(path, subfolder)
+
+
 def create_welcome_w2p():
     is_newinstall = os.path.exists('NEWINSTALL')
     if not os.path.exists('welcome.w2p') or is_newinstall:
         logger = logging.getLogger("web2py")
         try:
-            w2p_pack('welcome.w2p', 'applications/welcome')
+            app_path = 'applications/welcome'
+            for amf in missing_app_folders(app_path):
+                if not os.path.exists(amf):
+                    os.mkdir(amf)
+            w2p_pack('welcome.w2p', app_path)
             logger.info("New installation: created welcome.w2p file")
         except:
             logger.exception("New installation error: unable to create welcome.w2p file")
@@ -295,12 +306,6 @@ def w2p_unpack(filename, path, delete_tar=True):
 
 def create_app(path):
     w2p_unpack('welcome.w2p', path)
-    for subfolder in ('models', 'views', 'controllers', 'databases',
-                      'modules', 'cron', 'errors', 'sessions',
-                      'languages', 'static', 'private', 'uploads'):
-        subpath = os.path.join(path, subfolder)
-        if not os.path.exists(subpath):
-            os.mkdir(subpath)
 
 
 def w2p_pack_plugin(filename, path, plugin_name):
@@ -374,7 +379,7 @@ def get_session(request, other_application='admin'):
         if not os.path.exists(session_filename):
             session_filename = generate(session_filename)
         osession = storage.load_storage(session_filename)
-    except:
+    except Exception:
         osession = storage.Storage()
     return osession
 
@@ -424,6 +429,7 @@ def fix_newlines(path):
             write_file(filename, wdata, 'w')
 
 
+# FIXME: do we really need this ?
 def copystream(
     src,
     dest,
@@ -460,9 +466,8 @@ def abspath(*relpath, **base):
     applications_parent
     """
     path = os.path.join(*relpath)
-    gluon = base.get('gluon', False)
     if os.path.isabs(path):
         return path
-    if gluon:
+    if base.get('gluon', False):
         return os.path.join(global_settings.gluon_parent, path)
     return os.path.join(global_settings.applications_parent, path)

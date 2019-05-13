@@ -1,4 +1,3 @@
-#!/bin/env python
 # -*- coding: utf-8 -*-
 
 """
@@ -137,8 +136,8 @@ load_routes()
 HTTPS_SCHEMES = set(('https', 'HTTPS'))
 
 
-# pattern used to validate client address
-REGEX_CLIENT = re.compile(r'[\w:-]+(\.[\w-]+)*\.?')  # ## to account for IPV6
+# pattern used to match client IP address
+REGEX_CLIENT = re.compile(r'[\w:]+(\.\w+)*')
 
 def get_client(env):
     """
@@ -577,7 +576,8 @@ def wsgibase(environ, responder):
         return wsgibase(new_environ, responder)
     if global_settings.web2py_crontype == 'soft':
         cmd_opts = global_settings.cmd_options
-        newcron.softcron(global_settings.applications_parent).start()
+        newcron.softcron(global_settings.applications_parent,
+                         apps=cmd_opts and cmd_opts.crontabs).start()
     return http_response.to(responder, env=env)
 
 
