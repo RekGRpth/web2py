@@ -27,10 +27,10 @@ import string
 from gluon._compat import Cookie, urllib_quote
 # from thread import allocate_lock
 
-from gluon.fileutils import abspath, read_file, write_file
+from gluon.fileutils import abspath, read_file, write_file, create_missing_folders, create_missing_app_folders, \
+    add_path_first
 from gluon.settings import global_settings
 from gluon.utils import web2py_uuid, unlocalised_http_header_date
-from gluon.admin import add_path_first, create_missing_folders, create_missing_app_folders
 from gluon.globals import current
 
 #  Remarks:
@@ -576,11 +576,9 @@ def wsgibase(environ, responder):
         return wsgibase(new_environ, responder)
 
     if global_settings.web2py_crontype == 'soft':
-        # FIXME: calling softcron crondance in a new thread at every
-        #        request is not a good idea in a long running process
         cmd_opts = global_settings.cmd_options
         newcron.softcron(global_settings.applications_parent,
-                         apps=cmd_opts and cmd_opts.crontabs).start()
+                         apps=cmd_opts and cmd_opts.crontabs)
 
     return http_response.to(responder, env=env)
 

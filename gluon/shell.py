@@ -28,6 +28,7 @@ from gluon.restricted import RestrictedError
 from gluon.globals import Request, Response, Session
 from gluon.storage import Storage, List
 from gluon.admin import w2p_unpack
+from gluon.fileutils import create_missing_app_folders
 from pydal.base import BaseAdapter
 from gluon._compat import iteritems, ClassType, PY2
 
@@ -166,6 +167,9 @@ def env(
         path_info = '%s?%s' % (path_info, '&'.join(vars))
     request.env.path_info = path_info
 
+    # Ensure necessary folders are created
+    create_missing_app_folders(request)
+
     # Monkey patch so credentials checks pass.
 
     def check_credentials(request, other_application='admin'):
@@ -216,7 +220,8 @@ def run(
     bpython=False,
     python_code=None,
     cron_job=False,
-    scheduler_job=False):
+    scheduler_job=False,
+    force_migrate=False):
     """
     Start interactive shell or run Python script (startfile) in web2py
     controller environment. appname is formatted like:
@@ -246,6 +251,19 @@ def run(
             os.mkdir(adir)
             fileutils.create_app(adir)
 
+    if force_migrate:
+        import_models = True
+        from gluon.dal import DAL
+        orig_init = DAL.__init__
+
+        def custom_init(*args, **kwargs):
+            kwargs['migrate_enabled'] = True
+            kwargs['migrate'] = True
+            logger.info('Forcing migrate_enabled=True')
+            orig_init(*args, **kwargs)
+
+        DAL.__init__ = custom_init
+
     if c:
         import_models = True
     extra_request = {}
@@ -257,10 +275,11 @@ def run(
         # underscore necessary because request.vars is a property
         extra_request['_vars'] = vars
     _env = env(a, c=c, f=f, import_models=import_models, extra_request=extra_request)
+
     if c:
         pyfile = os.path.join('applications', a, 'controllers', c + '.py')
         pycfile = os.path.join('applications', a, 'compiled',
-                                 "controllers_%s_%s.pyc" % (c, f))
+                                 "controllers.%s.%s.pyc" % (c, f))
         if ((cron_job and os.path.isfile(pycfile))
             or not os.path.isfile(pyfile)):
             exec(read_pyc(pycfile), _env)
@@ -292,6 +311,15 @@ def run(
     elif python_code:
         try:
             exec(python_code, _env)
+            if import_models:
+                BaseAdapter.close_all_instances('commit')
+        except:
+            print(traceback.format_exc())
+            if import_models:
+                BaseAdapter.close_all_instances('rollback')
+    elif force_migrate:
+        try:
+            execfile("scripts/migrator.py", _env)
             if import_models:
                 BaseAdapter.close_all_instances('commit')
         except:

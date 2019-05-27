@@ -496,7 +496,7 @@ class web2pyDialog(object):
         self.update_schedulers()
 
         # softcron is stopped with HttpServer, thus if starting again
-        # need to reset newcron._cron_stopping to re-enable cron
+        # need to reset newcron._stopping to re-enable cron
         if self.options.soft_cron:
             newcron.reset()
 
@@ -741,16 +741,14 @@ def start():
         sys.argv = [options.run or ''] + options.args
         run(options.shell, plain=options.plain, bpython=options.bpython,
             import_models=options.import_models, startfile=options.run,
-            cron_job=options.cron_job)
+            cron_job=options.cron_job, force_migrate=options.force_migrate)
         return
 
     if options.cron_run:
         # run cron (extcron) and exit
-        logger.debug('Starting extcron...')
+        logger.debug('Running extcron...')
         global_settings.web2py_crontype = 'external'
-        extcron = newcron.extcron(options.folder, apps=options.crontabs)
-        extcron.start()
-        extcron.join()
+        newcron.extcron(options.folder, apps=options.crontabs)
         return
 
     if not options.with_scheduler and options.schedulers:
