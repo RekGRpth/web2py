@@ -718,7 +718,7 @@ class Scheduler(threading.Thread):
                 else:
                     logger.debug('  task completed or failed')
         result = tr.result
-        if result and result.startswith(RESULTINFILE):
+        if result and hasattr(result, 'startswith') and result.startswith(RESULTINFILE):
             temp_path = result.replace(RESULTINFILE, '', 1)
             with open(temp_path) as f:
                 tr.result = f.read()
