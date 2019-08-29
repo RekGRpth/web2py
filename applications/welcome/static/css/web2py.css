@@ -192,8 +192,8 @@ div.error {
     padding:10px 5px 10px 5px;
 }
 
-.web2py_grid tr.odd {background-color:#F9F9F9}
-.web2py_grid tr:hover {background-color:#F5F5F5}
+.web2py_grid tr.odd {background-color:#F0F0F0}
+.web2py_grid tr:hover {background-color:#E0E0E0}
 
 /*
 .web2py_breadcrumbs a {

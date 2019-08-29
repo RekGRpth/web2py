@@ -203,10 +203,10 @@ div.error_wrapper {
     padding: 10px 5px;
 }
 .web2py_grid tr.odd {
-    background-color: #F9F9F9;
+    background-color: #F0F0F0;
 }
 .web2py_grid tr:hover {
-    background-color: #F5F5F5;
+    background-color: #E0E0E0;
 }
 .web2py_console form {
     width: 100%;
