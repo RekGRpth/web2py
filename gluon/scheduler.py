@@ -547,7 +547,7 @@ class TYPE(object):
         self.myclass = myclass
         self.parse = parse
 
-    def __call__(self, value):
+    def __call__(self, value, record_id=None):
         from gluon import current
         if isinstance(value, self.myclass): return (value, None)
         return (value, current.T('Not of type: %s') % self.myclass)
