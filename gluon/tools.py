@@ -986,15 +986,15 @@ def addrow(form, a, b, c, style, _id, position=-1):
                                      DIV(b, SPAN(c, _class='inline-help'),
                                          _class='controls'),
                                      _class='control-group', _id=_id))
-    elif style == "bootstrap3_inline":
+    elif style in ("bootstrap3_inline", "bootstrap4_inline"):
         form[0].insert(position, DIV(LABEL(a, _class='control-label col-sm-3'),
                                      DIV(b, SPAN(c, _class='help-block'),
                                          _class='col-sm-9'),
-                                     _class='form-group', _id=_id))
-    elif style == "bootstrap3_stacked":
+                                     _class='form-group row', _id=_id))
+    elif style in ("bootstrap3_stacked", "bootstrap4_stacked"):
         form[0].insert(position, DIV(LABEL(a, _class='control-label'),
                                      b, SPAN(c, _class='help-block'),
-                                     _class='form-group', _id=_id))
+                                     _class='form-group row', _id=_id))
     else:
         form[0].insert(position, TR(TD(LABEL(a), _class='w2p_fl'),
                                     TD(b, _class='w2p_fw'),
@@ -5615,9 +5615,6 @@ class Expose(object):
                          and file creation under `base`.
 
         """
-        # why would this not be callable? but otherwise tests do not pass
-        if current.session and callable(current.session.forget):
-            current.session.forget()
         self.follow_symlink_out = follow_symlink_out
         self.base = self.normalize_path(
             base or os.path.join(current.request.folder, 'static'))
