@@ -1262,7 +1262,7 @@ def plugin():
     defines = {}
     for m in models:
         data = safe_read(apath('%s/models/%s' % (app, m), r=request))
-        defines[m] = regex_tables.findall(data)
+        defines[m] = re.findall(REGEX_DEFINE_TABLE, data, re.MULTILINE)
         defines[m].sort()
 
     # Get all controllers
