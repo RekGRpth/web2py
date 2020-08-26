@@ -841,8 +841,11 @@ class AutocompleteWidget(object):
                         break
             else:
                 record = self.db(
-                    self.fields[1].cast('text') == value).select(self.fields[0]).first()
-            attr['value'] = record and record[self.fields[0].name]
+                    self.fields[1].cast('text') == value).select(limitby=(0, 1), *(self.fields + self.help_fields)).first()
+            if self.help_fields:
+                attr['value'] = record and self.help_string % record
+            else:
+                attr['value'] = record and record[self.fields[0].name]
             attr['_onblur'] = "jQuery('#%(div_id)s').delay(500).fadeOut('slow');" % \
                 dict(div_id=div_id, u='F' + self.keyword)
             js = """
@@ -2214,12 +2217,12 @@ class SQLFORM(FORM):
                         _type='text', _id=_id,
                         _class="%s %s" % ((field_type or ''), 'form-control'))
 
-                if hasattr(field.requires, 'options'):
-                    value_input = SELECT(
-                        *[OPTION(v, _value=k)
-                          for k, v in field.requires.options()],
-                         _class='form-control',
-                         **dict(_id=_id))
+#                if hasattr(field.requires, 'options'):
+#                    value_input = SELECT(
+#                        *[OPTION(v, _value=k)
+#                          for k, v in field.requires.options()],
+#                         _class='form-control',
+#                         **dict(_id=_id))
 
                 new_button = INPUT(
                     _type="button", _value=T('New Search'), _class="btn btn-default", _title=T('Start building a new search'),
