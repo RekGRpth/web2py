@@ -2178,6 +2178,7 @@ class SQLFORM(FORM):
                 operators = SELECT(*[OPTION(T(option), _value=option) for option in options],
                                     _class='form-control')
                 _id = "%s_%s" % (value_id, name)
+                widget_ = None
                 if field_type in ['boolean', 'double', 'time', 'integer']:
                     widget_ = SQLFORM.widgets[field_type]
                     value_input = widget_.widget(field, field.default, _id=_id,
@@ -2226,13 +2227,13 @@ class SQLFORM(FORM):
 
                 new_button = INPUT(
                     _type="button", _value=T('New Search'), _class="btn btn-default", _title=T('Start building a new search'),
-                    _onclick="%s_build_query('new','%s')" % (prefix, field))
+                    _onclick="%s_build_query('new','%s','%s')" % (prefix, field, field.widget.keyword + '_auto' if isinstance(widget_, SQLFORM.widgets.autocomplete) else ''))
                 and_button = INPUT(
                     _type="button", _value=T('+ And'), _class="btn btn-default", _title=T('Add this to the search as an AND term'),
-                    _onclick="%s_build_query('and','%s')" % (prefix, field))
+                    _onclick="%s_build_query('and','%s','%s')" % (prefix, field, field.widget.keyword + '_auto' if isinstance(widget_, SQLFORM.widgets.autocomplete) else ''))
                 or_button = INPUT(
                     _type="button", _value=T('+ Or'), _class="btn btn-default", _title=T('Add this to the search as an OR term'),
-                    _onclick="%s_build_query('or','%s')" % (prefix, field))
+                    _onclick="%s_build_query('or','%s','%s')" % (prefix, field, field.widget.keyword + '_auto' if isinstance(widget_, SQLFORM.widgets.autocomplete) else ''))
                 close_button = INPUT(
                     _type="button", _value=T('Close'), _class="btn btn-default",
                     _onclick="jQuery('#%s').slideUp()" % panel_id)
@@ -2254,11 +2255,16 @@ class SQLFORM(FORM):
         jQuery('#%(fields_id)s input,#%(fields_id)s select').css(
             'width','auto');
         jQuery(function(){web2py_ajax_fields('#%(fields_id)s');});
-        function %(prefix)s_build_query(aggregator,a) {
+        function %(prefix)s_build_query(aggregator,a,c) {
           var b=a.replace('.','-');
           var option = jQuery('#%(field_id)s_'+b+' select').val();
           var value;
-          var $value_item = jQuery('#%(value_id)s_'+b);
+          var $value_item;
+          if (c.length) {
+            $value_item = jQuery('#'+c);
+          } else {
+            $value_item = jQuery('#%(value_id)s_'+b);
+          }
           if ($value_item.is(':checkbox')){
             if  ($value_item.is(':checked'))
                     value = 'True';
