@@ -3937,7 +3937,7 @@ class Auth(AuthAPI):
             return self.has_permission(name, table_name, record_id)
         return self.requires(has_permission, otherwise=otherwise)
 
-    def requires_signature(self, otherwise=None, hash_vars=True):
+    def requires_signature(self, otherwise=None, hash_vars=True, hash_extension=True):
         """
         Decorator that prevents access to action if not logged in or
         if user logged in is not a member of group_id.
@@ -3945,7 +3945,7 @@ class Auth(AuthAPI):
         group_id is calculated.
         """
         def verify():
-            return URL.verify(current.request, user_signature=True, hash_vars=hash_vars)
+            return URL.verify(current.request, user_signature=True, hash_vars=hash_vars, hash_extension=True)
         return self.requires(verify, otherwise)
 
     def accessible_query(self, name, table, user_id=None):
