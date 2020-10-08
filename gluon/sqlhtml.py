@@ -2271,7 +2271,7 @@ class SQLFORM(FORM):
             else  value = 'False';
           }
           else
-          { value = $value_item.val().replace("'","\\\\'")}
+          { value = $value_item.val().replaceAll("'","\\\\'")}
           var s=a+" "+option+" '"+value+"'";
           var k=jQuery('#%(keywords_id)s');
           var v=k.val();
