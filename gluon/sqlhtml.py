@@ -2271,8 +2271,8 @@ class SQLFORM(FORM):
             else  value = 'False';
           }
           else
-          { value = $value_item.val().replace('"','\\\\"')}
-          var s=a+' '+option+' "'+value+'"';
+          { value = $value_item.val()/*.replace('"','\\\\"')*/}
+          var s=a+" "+option+" '"+value+"'";
           var k=jQuery('#%(keywords_id)s');
           var v=k.val();
           if(aggregator=='new') k.val(s); else k.val((v?(v+' '+ aggregator +' '):'')+s);
