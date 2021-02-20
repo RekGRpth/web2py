@@ -69,7 +69,7 @@ while 1:
         url = URL(a='admin', f='ticket', args=[request.application, file],
                   scheme=True)
         payload = json.dumps(dict(text="Error in %(app)s.\n%(url)s" %
-                                       dict(app=request.application, url=url)))
+                                       dict(app=request.application, url=url)), ensure_ascii=False)
 
         requests.post(global_settings.slack_hook, data=dict(payload=payload))
 
