@@ -155,7 +155,7 @@ class JSONEncoderForHTML(json_parser.JSONEncoder):
 
 
 def json(value, default=custom_json, indent=None, sort_keys=False, cls=JSONEncoderForHTML):
-    return json_parser.dumps(value, default=default, cls=cls, sort_keys=sort_keys, indent=indent)
+    return json_parser.dumps(value, default=default, cls=cls, sort_keys=sort_keys, indent=indent, ensure_ascii=False)
 
 def csv(value):
     return ''
