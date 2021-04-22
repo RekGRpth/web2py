@@ -832,14 +832,14 @@ class AutocompleteWidget(object):
                 del attr['requires']
             attr['_name'] = key2
             value = attr['value']
+            record = None
             if isinstance(self.fields[0], Field.Virtual):
-                record = None
                 table_rows = self.db(self.db[self.fields[0].tablename]).select(orderby=self.orderby)
                 for row in table_rows:
                     if row.id == value:
                         record = row
                         break
-            else:
+            elif value:
                 record = self.db(
                     self.fields[1].cast('text') == value).select(limitby=(0, 1), *(self.fields + self.help_fields)).first()
             if self.help_fields:
