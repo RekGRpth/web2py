@@ -12,3 +12,4 @@ jobs:
         with:
           repository: web2py/web2py
       - uses: rekgrpth/git-merge-upstream-action@v1
+      - uses: rekgrpth/git-push-action@v1
