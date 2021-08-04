@@ -7,6 +7,7 @@ jobs:
   merge:
     runs-on: ubuntu-latest
     steps:
-      - uses: rekgrpth/merge-upstream@v1
+      - uses: rekgrpth/git-clone-action@v1
+      - uses: rekgrpth/git-fetch-upstream@v1
         with:
-          upstream: web2py/web2py
+          repository: web2py/web2py
