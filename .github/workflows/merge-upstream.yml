@@ -8,6 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: rekgrpth/git-clone-action@v1
-      - uses: rekgrpth/git-fetch-upstream@v1
+      - uses: rekgrpth/git-fetch-upstream-action@v1
         with:
           repository: web2py/web2py
