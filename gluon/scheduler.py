@@ -1019,6 +1019,7 @@ class Scheduler(threading.Thread):
             db.commit()
             logger.debug('   work to do %s', task.id)
         else:
+            db.commit()
             logger.info('nothing to do')
             return None
 
