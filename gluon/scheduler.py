@@ -944,6 +944,14 @@ class Scheduler(threading.Thread):
                         self.w_stats.empty_runs = 0
                         self.w_stats.status = RUNNING
                         self.w_stats.total += 1
+                        if self.max_total_runs != 0:
+                            logger.debug('total runs %s/%s',
+                                         self.w_stats.total,
+                                         self.max_total_runs)
+                            if self.w_stats.total >= self.max_total_runs:
+                                logger.info(
+                                    'total runs limit reached, killing myself')
+                                self.die()
                     self.wrapped_report_task(task, self.execute(task))
                     with self.w_stats_lock:
                         if not self.w_stats.status == DISABLED:
@@ -964,22 +972,6 @@ class Scheduler(threading.Thread):
                         logger.info('TICKER: greedy loop')
                         self.wrapped_assign_tasks()
                     logger.debug('sleeping...')
-                    if self.max_empty_runs != 0:
-                        logger.debug('empty runs %s/%s',
-                                     self.w_stats.empty_runs,
-                                     self.max_empty_runs)
-                        if self.w_stats.empty_runs >= self.max_empty_runs:
-                            logger.info(
-                                'empty runs limit reached, killing myself')
-                            self.die()
-                    if self.max_total_runs != 0:
-                        logger.debug('total runs %s/%s',
-                                     self.w_stats.total,
-                                     self.max_total_runs)
-                        if self.w_stats.total >= self.max_total_runs:
-                            logger.info(
-                                'total runs limit reached, killing myself')
-                            self.die()
                     self.sleep()
         except (KeyboardInterrupt, SystemExit):
             logger.info('catched')
@@ -1464,8 +1456,8 @@ class Scheduler(threading.Thread):
                 db.commit()
         # I didn't report tasks but I'm working nonetheless!!!!
         with self.w_stats_lock:
-#            if tnum > 0:
-#                self.w_stats.empty_runs = 0
+            if tnum > 0:
+                self.w_stats.empty_runs = 0
             self.w_stats.queue = tnum
             self.w_stats.distribution = wkgroups
             self.w_stats.workers = len(all_workers)
