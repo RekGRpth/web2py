@@ -33,6 +33,7 @@ from gluon import IS_INT_IN_RANGE, IS_DATETIME, IS_IN_DB
 from gluon.utils import web2py_uuid
 from gluon._compat import Queue, long, iteritems, PY2, to_bytes, string_types, integer_types
 from gluon.storage import Storage
+from pydal.base import BaseAdapter
 
 USAGE = """
 ## Example
@@ -513,9 +514,11 @@ def executor(retq, task, outq):
                 f.write(dump_result)
             result = RESULTINFILE + temp_path
         retq.put(TaskReport('COMPLETED', result=result))
+        BaseAdapter.close_all_instances('commit')
     except:
         tb = traceback.format_exc()
         retq.put(TaskReport('FAILED', tb=tb))
+        BaseAdapter.close_all_instances('rollback')
     finally:
         stdout.close()
 
