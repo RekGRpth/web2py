@@ -789,7 +789,7 @@ class AutocompleteWidget(object):
                         options = [
                             OPTION(
                                 self.help_string % dict(
-                                    [(h.name, s[h.name]) for h
+                                    [(h.name, h.referent.table._format % h.referent.table(s[h.name]) if h.type.startswith('reference ') else s[h.name]) for h
                                      in self.fields[:1] + self.help_fields]),
                                                     _value=s[id_field.name],
                                                     _selected=(k == 0))
