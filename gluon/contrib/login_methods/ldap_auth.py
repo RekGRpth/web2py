@@ -702,6 +702,16 @@ def ldap_auth(server='ldap',
                                  "(&(sAMAccountName=%s)(%s))" % (ldap.filter.escape_filter_chars(username_bare),
                                                                  filterstr),
                                  ["cn"])[0][0]
+        elif ldap_mode == 'uid':
+            # OpenLDAP (UID)
+            if ldap_binddn and ldap_bindpw:
+                con.simple_bind_s(ldap_binddn, ldap_bindpw)
+                dn = "uid=" + username + "," + base_dn
+                dn = con.search_s(base_dn, ldap.SCOPE_SUBTREE, "(uid=%s)" % username, [''])[0][0]
+            else:
+                dn = "uid=" + username + "," + base_dn
+            con.simple_bind_s(dn, password)
+            username = dn
         else:
             if ldap_binddn:
                 # need to search directory with an bind_dn account 1st
