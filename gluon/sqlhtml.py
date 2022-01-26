@@ -2747,13 +2747,13 @@ class SQLFORM(FORM):
                         else:
                             dbset = dbset(SQLFORM.build_query(
                                 sfields, keywords))
-                        rows = dbset.select(left=left, orderby=orderby,
+                        rows = dbset.iterselect(left=left, orderby=orderby,
                                             cacheable=True, *selectable_columns)
                     except Exception as e:
                         response.flash = T('Internal Error')
                         rows = []
                 else:
-                    rows = dbset.select(left=left, orderby=orderby,
+                    rows = dbset.iterselect(left=left, orderby=orderby,
                                         cacheable=True, *selectable_columns)
 
                 value = exportManager[export_type]
