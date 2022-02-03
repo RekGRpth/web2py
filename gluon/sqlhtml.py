@@ -2759,7 +2759,7 @@ class SQLFORM(FORM):
                 value = exportManager[export_type]
                 clazz = value[0] if hasattr(value, '__getitem__') else value
                 # expcolumns is all cols to be exported including virtual fields
-                rows.colnames = expcolumns
+                #rows.colnames = expcolumns
                 oExp = clazz(rows)
                 export_filename = \
                     request.vars.get('_export_filename') or 'rows'
