@@ -2603,9 +2603,10 @@ class SQLFORM(FORM):
             def onsuccess(form):
                 if (oncreate): oncreate(form)
                 if details:
+                    args = request.args
                     args[-2] = 'view'
                     args.append(form.vars.id)
-                    redirect(url())
+                    redirect(URL(args=args, user_signature=user_signature))
             create_form.process(formname=formname,
                                 next=referrer,
                                 onvalidation=onvalidation,
@@ -2656,8 +2657,9 @@ class SQLFORM(FORM):
             def onsuccess(form):
                 if onupdate: onupdate(form)
                 if details:
+                    args = request.args
                     args[-3] = 'view'
-                    redirect(url())
+                    redirect(URL(args=args, user_signature=user_signature))
             update_form.process(
                 formname=formname,
                 onvalidation=onvalidation,
