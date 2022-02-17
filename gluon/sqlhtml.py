@@ -2600,11 +2600,17 @@ class SQLFORM(FORM):
             sqlformargs.update(formargs)
             sqlformargs.update(createargs)
             create_form = SQLFORM(table, **sqlformargs)
+            def onsuccess(form):
+                if (oncreate): oncreate(form)
+                if details:
+                    args[-2] = 'view'
+                    args.append(form.vars.id)
+                    redirect(url())
             create_form.process(formname=formname,
                                 next=referrer,
                                 onvalidation=onvalidation,
                                 onfailure=onfailure,
-                                onsuccess=oncreate)
+                                onsuccess=onsuccess)
             res = DIV(buttons(), create_form, formfooter, _class=_class)
             res.create_form = create_form
             res.update_form = update_form
@@ -2647,11 +2653,16 @@ class SQLFORM(FORM):
             sqlformargs.update(formargs)
             sqlformargs.update(editargs)
             update_form = SQLFORM(table, record, **sqlformargs)
+            def onsuccess(form):
+                if onupdate: onupdate(form)
+                if details:
+                    args[-3] = 'view'
+                    redirect(url())
             update_form.process(
                 formname=formname,
                 onvalidation=onvalidation,
                 onfailure=onfailure,
-                onsuccess=onupdate,
+                onsuccess=onsuccess,
                 next=referrer)
             res = DIV(buttons(view=details, record=record),
                       update_form, formfooter, _class=_class)
