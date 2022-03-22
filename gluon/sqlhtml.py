@@ -2596,6 +2596,7 @@ class SQLFORM(FORM):
         if create and request.args(-2) == 'new':
             table = db[request.args[-1]]
             sqlformargs = dict(ignore_rw=ignore_rw, formstyle=formstyle,
+                               submit_button=T('Add {}'.format(table._singular)),
                                _class='web2py_form')
             sqlformargs.update(formargs)
             sqlformargs.update(createargs)
@@ -2649,7 +2650,7 @@ class SQLFORM(FORM):
             sqlformargs = dict(upload=upload, ignore_rw=ignore_rw,
                                formstyle=formstyle, deletable=deletable_,
                                _class='web2py_form',
-                               submit_button=T('Submit'),
+                               submit_button=T('Edit {}'.format(table._singular)),
                                delete_label=T('Check to delete'))
             sqlformargs.update(formargs)
             sqlformargs.update(editargs)
@@ -2794,8 +2795,8 @@ class SQLFORM(FORM):
         if create:
             add = gridbutton(
                 buttonclass='buttonadd',
-                buttontext=T('Add Record'),
-                title=T("Add record to database"),
+                buttontext=T('Add {}'.format(table._singular)),
+                title=T("Add {} to database".format(table._singular)),
                 buttonurl=url(args=['new', tablename]))
             if not searchable:
                 console.append(add)
