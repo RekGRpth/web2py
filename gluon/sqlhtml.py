@@ -857,12 +857,6 @@ class AutocompleteWidget(object):
                                                     _selected=(k == 0))
                                             for k, s in enumerate(rows)
                                     ]
-                                ),
-                                _value=s[id_field.name],
-                                _selected=(k == 0),
-                            )
-                            for k, s in enumerate(rows)
-                        ]
                     else:
                         options = [
                             OPTION(
