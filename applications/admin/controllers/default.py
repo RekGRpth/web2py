@@ -86,7 +86,7 @@ def safe_open(a, b):
         return tmp()
 
     a_for_check = os.path.abspath(os.path.normpath(a))
-    
+
     web2py_apps_root = os.path.abspath(up(request.folder))
     web2py_deposit_root = os.path.join(up(web2py_apps_root), 'deposit')
 
