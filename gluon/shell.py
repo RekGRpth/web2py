@@ -486,7 +486,6 @@ def test(testpath, import_models=True, verbose=False):
                 types.MethodType,
                 types.ModuleType,
             ):
-
                 # Reload environment before each test.
 
                 globs = env(a, c=c, f=f, import_models=import_models)
@@ -499,12 +498,11 @@ def test(testpath, import_models=True, verbose=False):
                 )
                 if type(obj) in (type, ClassType):
                     for attr_name in dir(obj):
-
                         # Execute . operator so decorators are executed.
 
                         o = eval("%s.%s" % (name, attr_name), globs)
                         doctest_object(attr_name, o)
 
-        for (name, obj) in globs.items():
+        for name, obj in globs.items():
             if name not in ignores and (f is None or f == name):
                 doctest_object(name, obj)

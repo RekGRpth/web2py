@@ -497,7 +497,6 @@ def wsgibase(environ, responder):
                     request.body.close()
 
                 if hasattr(current, "request"):
-
                     # ##################################################
                     # on success, try store session in database
                     # ##################################################
@@ -550,7 +549,6 @@ def wsgibase(environ, responder):
                 ticket = None
 
             except RestrictedError as e:
-
                 if request.body:
                     request.body.close()
 
@@ -577,7 +575,6 @@ def wsgibase(environ, responder):
                 )
 
         except:
-
             if request.body:
                 request.body.close()
 
