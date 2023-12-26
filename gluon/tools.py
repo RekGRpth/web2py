@@ -7465,7 +7465,7 @@ class Wiki(object):
 class Config(object):
     def __init__(self, filename, section, default_values={}):
         self.config = configparser.ConfigParser(default_values)
-        self.config.read(filename)
+        self.config.read(filename, encoding='utf-8')
         if not self.config.has_section(section):
             self.config.add_section(section)
         self.section = section

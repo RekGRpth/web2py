@@ -121,7 +121,7 @@ class AppConfigLoader(object):
 
     def read_config_ini(self):
         config = configparser.RawConfigParser()
-        config.read(self.file)
+        config.read(self.file, encoding='utf-8')
         settings = {}
         for section in config.sections():
             settings[section] = {}
