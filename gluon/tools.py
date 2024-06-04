@@ -3283,7 +3283,7 @@ class Auth(AuthAPI):
 
         # process authenticated users
         if user:
-            user = Row(table_user._filter_fields(user, id=True))
+            user = Row(table_user._filter_fields(user, True))
             # process authenticated users
             # user wants to be logged in for longer
             self.login_user(user)
@@ -5117,7 +5117,7 @@ class Crud(object):  # pragma: no cover
             separator=self.settings.label_separator,
         )
         if current.request.extension not in ("html", "load"):
-            return table._filter_fields(form.record, id=True)
+            return table._filter_fields(form.record, True)
         return form
 
     def delete(
