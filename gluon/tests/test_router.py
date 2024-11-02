@@ -8,11 +8,15 @@ import shutil
 import tempfile
 import unittest
 
-from gluon._compat import PY2, to_bytes
 from gluon.html import URL
 from gluon.http import HTTP
-from gluon.rewrite import (filter_err, filter_url, get_effective_router, load,
-                           map_url_out)
+from gluon.rewrite import (
+    filter_err,
+    filter_url,
+    get_effective_router,
+    load,
+    map_url_out,
+)
 from gluon.settings import global_settings
 from gluon.storage import Storage
 
@@ -77,8 +81,6 @@ class TestRouter(unittest.TestCase):
     """Tests the routers logic from gluon.rewrite"""
 
     def myassertRaisesRegex(self, *args, **kwargs):
-        if PY2:
-            return getattr(self, "assertRaisesRegexp")(*args, **kwargs)
         return getattr(self, "assertRaisesRegex")(*args, **kwargs)
 
     def test_router_syntax(self):
@@ -2081,9 +2083,7 @@ class TestRouter(unittest.TestCase):
             str(URL(a="init", c="default", f="f", args=["årg"])), "/f/%C3%A5rg"
         )
         self.assertEqual(URL(a="init", c="default", f="fünc"), "/fünc")
-        self.assertEqual(
-            to_bytes(URL(a="init", c="default", f="fünc")), b"/f\xc3\xbcnc"
-        )
+        self.assertEqual(str(URL(a="init", c="default", f="fünc")), "/fünc")
 
     def test_routes_anchor(self):
         """

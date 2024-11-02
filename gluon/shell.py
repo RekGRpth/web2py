@@ -10,7 +10,6 @@ Web2py environment in the shell
 --------------------------------
 """
 
-from __future__ import print_function
 
 import code
 import copy
@@ -26,7 +25,6 @@ import types
 from pydal.base import BaseAdapter
 
 import gluon.fileutils as fileutils
-from gluon._compat import PY2, ClassType, iteritems
 from gluon.admin import w2p_unpack
 from gluon.compileapp import build_environment, read_pyc, run_models_in
 from gluon.globals import Request, Response, Session
@@ -36,14 +34,14 @@ from gluon.storage import List, Storage
 
 logger = logging.getLogger("web2py")
 
-if not PY2:
 
-    def execfile(filename, global_vars=None, local_vars=None):
-        with open(filename, "rb", encoding="UTF-8") as f:
-            code = compile(f.read(), filename, "exec")
-            exec(code, global_vars, local_vars)
+def execfile(filename, global_vars=None, local_vars=None):
+    with open(filename, "rb", encoding="UTF-8") as f:
+        code = compile(f.read(), filename, "exec")
+        exec(code, global_vars, local_vars)
 
-    raw_input = input
+
+raw_input = input
 
 
 def enable_autocomplete_and_history(adir, env):
@@ -167,9 +165,7 @@ def env(
     if request.args:
         path_info = "%s/%s" % (path_info, "/".join(request.args))
     if request.vars:
-        vars = [
-            "%s=%s" % (k, v) if v else "%s" % k for (k, v) in iteritems(request.vars)
-        ]
+        vars = ["%s=%s" % (k, v) if v else "%s" % k for (k, v) in request.vars.items()]
         path_info = "%s?%s" % (path_info, "&".join(vars))
     request.env.path_info = path_info
 
@@ -482,7 +478,7 @@ def test(testpath, import_models=True, verbose=False):
             if type(obj) in (
                 types.FunctionType,
                 type,
-                ClassType,
+                type,
                 types.MethodType,
                 types.ModuleType,
             ):

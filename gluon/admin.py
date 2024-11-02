@@ -14,14 +14,24 @@ from __future__ import print_function
 
 import os
 import traceback
+import urllib.request
 import zipfile
 from shutil import copyfileobj, rmtree
 
-from gluon._compat import to_native, urlopen
 from gluon.cache import CacheOnDisk
-from gluon.fileutils import (abspath, create_app, fix_newlines, parse_version,
-                             recursive_unlink, up, w2p_pack, w2p_pack_plugin,
-                             w2p_unpack, w2p_unpack_plugin, write_file)
+from gluon.fileutils import (
+    abspath,
+    create_app,
+    fix_newlines,
+    parse_version,
+    recursive_unlink,
+    up,
+    w2p_pack,
+    w2p_pack_plugin,
+    w2p_unpack,
+    w2p_unpack_plugin,
+    write_file,
+)
 from gluon.restricted import RestrictedError
 from gluon.settings import global_settings
 
@@ -153,8 +163,7 @@ def app_compile(app, request, skip_failed_views=False):
         None if everything went ok, traceback text if errors are found
 
     """
-    from gluon.compileapp import (compile_application,
-                                  remove_compiled_application)
+    from gluon.compileapp import compile_application, remove_compiled_application
 
     folder = apath(app, request)
     try:
@@ -340,7 +349,7 @@ def check_new_version(myversion, version_url):
 
     """
     try:
-        version = to_native(urlopen(version_url).read())
+        version = urllib.request.urlopen(version_url).read().decode("utf8")
         pversion = parse_version(version)
         pmyversion = parse_version(myversion)
     except IOError as e:

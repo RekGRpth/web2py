@@ -10,6 +10,7 @@ import decimal
 import unittest
 
 from gluon.html import SPAN
+
 # careful with the import path 'cause of isinstance() checks
 from gluon.languages import TranslatorFactory
 from gluon.serializers import *
@@ -58,7 +59,7 @@ class TestSerializers(unittest.TestCase):
         base = {"è": 1, "b": 2}
         base_enc = json(base)
         base_load = loads_json(base_enc)
-        self.assertTrue(base == base_load)
+        self.assertEqual(base, base_load)
         # if unicode_keys is false, the standard behaviour is assumed
         base_load = loads_json(base_enc, unicode_keys=False)
-        self.assertFalse(base == base_load)
+        self.assertEqual(base, base_load)

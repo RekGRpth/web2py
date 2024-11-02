@@ -4,3 +4,6 @@
 [submodule "gluon/packages/yatl"]
 	path = gluon/packages/yatl
 	url = git@github.com:RekGRpth/yatl.git
+[submodule "gluon/packages/rocket3"]
+	path = gluon/packages/rocket3
+	url = git@github.com:RekGRpth/rocket3.git

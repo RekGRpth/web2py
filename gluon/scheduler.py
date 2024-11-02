@@ -12,10 +12,12 @@ Background processes made simple
 
 from __future__ import print_function
 
+import builtins
 import datetime
 import logging
 import multiprocessing
 import os
+import queue as Queue
 import re
 import signal
 import socket
@@ -27,11 +29,19 @@ import traceback
 import types
 from functools import reduce
 from json import dumps, loads
-
-from gluon import (DAL, IS_DATETIME, IS_EMPTY_OR, IS_IN_DB, IS_IN_SET,
-                   IS_INT_IN_RANGE, IS_NOT_EMPTY, IS_NOT_IN_DB, Field)
-from gluon._compat import (PY2, Queue, integer_types, iteritems, long,
-                           string_types, to_bytes)
+from pydal.base import DEFAULT
+from pydal.objects import Query
+from gluon import (
+    DAL,
+    IS_DATETIME,
+    IS_EMPTY_OR,
+    IS_IN_DB,
+    IS_IN_SET,
+    IS_INT_IN_RANGE,
+    IS_NOT_EMPTY,
+    IS_NOT_IN_DB,
+    Field,
+)
 from gluon.storage import Storage
 from pydal.base import BaseAdapter
 from gluon.utils import web2py_uuid
@@ -456,33 +466,6 @@ class CronParser(object):
 # borrowed from http://stackoverflow.com/questions/956867/
 
 
-def _decode_list(lst):
-    if not PY2:
-        return lst
-    newlist = []
-    for i in lst:
-        if isinstance(i, string_types):
-            i = to_bytes(i)
-        elif isinstance(i, list):
-            i = _decode_list(i)
-        newlist.append(i)
-    return newlist
-
-
-def _decode_dict(dct):
-    if not PY2:
-        return dct
-    newdict = {}
-    for k, v in iteritems(dct):
-        k = to_bytes(k)
-        if isinstance(v, string_types):
-            v = to_bytes(v)
-        elif isinstance(v, list):
-            v = _decode_list(v)
-        newdict[k] = v
-    return newdict
-
-
 def executor(retq, task, outq):
     """The function used to execute tasks in the background process."""
     logger.debug("    task started")
@@ -660,7 +643,7 @@ class Scheduler(threading.Thread):
         max_total_runs=0,
     ):
         threading.Thread.__init__(self)
-        self.setDaemon(True)
+        self.daemon = True
         self.process = None  # the background process
         self.process_queues = (None, None)
         self.have_heartbeat = True  # set to False to kill
@@ -711,7 +694,7 @@ class Scheduler(threading.Thread):
         """
         outq = None
         retq = None
-        if self.use_spawn and not PY2:
+        if self.use_spawn:
             ctx = multiprocessing.get_context("spawn")
             outq = ctx.Queue()
             retq = ctx.Queue(maxsize=1)
@@ -881,8 +864,7 @@ class Scheduler(threading.Thread):
             )
 
     def define_tables(self, db, migrate):
-        """Define Scheduler tables structure."""
-        from pydal.base import DEFAULT
+        """Define Scheduler tables structure."""        
 
         logger.debug("defining tables (migrate=%s)", migrate)
         now = self.now
@@ -1718,12 +1700,12 @@ class Scheduler(threading.Thread):
             kwargs.update(next_run_time=kwargs["start_time"])
         db = self.db
         rtn = db.scheduler_task.validate_and_insert(**kwargs)
-        if not rtn.errors:
-            rtn.uuid = tuuid
+        if not rtn.get("errors"):
+            rtn["uuid"] = tuuid
             if immediate:
                 db((db.scheduler_worker.is_ticker == True)).update(status=PICK)
         else:
-            rtn.uuid = None
+            rtn["uuid"] = None
         return rtn
 
     def task_status(self, ref, output=False):
@@ -1747,13 +1729,12 @@ class Scheduler(threading.Thread):
             The scheduler_run record is fetched by a left join, so it can
             have all fields == None
 
-        """
-        from pydal.objects import Query
+        """        
 
         db = self.db
         sr = db.scheduler_run
         st = db.scheduler_task
-        if isinstance(ref, integer_types):
+        if isinstance(ref, int):
             q = st.id == ref
         elif isinstance(ref, str):
             q = st.uuid == ref
@@ -1934,7 +1915,7 @@ def main():
             filename = filename[:-3]
         sys.path.append(path)
         print("importing tasks...")
-        tasks = __import__(filename, globals(), locals(), [], -1).tasks
+        tasks = builtins.__import__(filename, globals(), locals(), [], -1).tasks
         print("tasks found: " + ", ".join(list(tasks.keys())))
     else:
         tasks = {}
