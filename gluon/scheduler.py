@@ -29,19 +29,12 @@ import traceback
 import types
 from functools import reduce
 from json import dumps, loads
+
 from pydal.base import DEFAULT
 from pydal.objects import Query
-from gluon import (
-    DAL,
-    IS_DATETIME,
-    IS_EMPTY_OR,
-    IS_IN_DB,
-    IS_IN_SET,
-    IS_INT_IN_RANGE,
-    IS_NOT_EMPTY,
-    IS_NOT_IN_DB,
-    Field,
-)
+
+from gluon import (DAL, IS_DATETIME, IS_EMPTY_OR, IS_IN_DB, IS_IN_SET,
+                   IS_INT_IN_RANGE, IS_NOT_EMPTY, IS_NOT_IN_DB, Field)
 from gluon.storage import Storage
 from pydal.base import BaseAdapter
 from gluon.utils import web2py_uuid
@@ -864,7 +857,7 @@ class Scheduler(threading.Thread):
             )
 
     def define_tables(self, db, migrate):
-        """Define Scheduler tables structure."""        
+        """Define Scheduler tables structure."""
 
         logger.debug("defining tables (migrate=%s)", migrate)
         now = self.now
@@ -887,9 +880,9 @@ class Scheduler(threading.Thread):
             Field("broadcast", "boolean", default=False),
             Field(
                 "function_name",
-                requires=IS_IN_SET(sorted(self.tasks.keys()))
-                if self.tasks
-                else DEFAULT,
+                requires=(
+                    IS_IN_SET(sorted(self.tasks.keys())) if self.tasks else DEFAULT
+                ),
             ),
             Field(
                 "uuid",
@@ -1729,7 +1722,7 @@ class Scheduler(threading.Thread):
             The scheduler_run record is fetched by a left join, so it can
             have all fields == None
 
-        """        
+        """
 
         db = self.db
         sr = db.scheduler_run

@@ -52,11 +52,9 @@ from gluon import *
 from gluon.authapi import AuthAPI
 from gluon.contenttype import contenttype
 from gluon.contrib.autolinks import expand_one
-from gluon.contrib.markmin.markmin2html import (
-    replace_at_urls,
-    replace_autolinks,
-    replace_components,
-)
+from gluon.contrib.markmin.markmin2html import (replace_at_urls,
+                                                replace_autolinks,
+                                                replace_components)
 from gluon.fileutils import check_credentials, read_file
 from gluon.storage import Messages, Settings, Storage, StorageList
 from gluon.utils import compare, web2py_uuid
@@ -359,6 +357,7 @@ class Mail(object):
         x509_sign_certfile=None,
         x509_crypt_certfiles=None,
         x509_nocerts=None,
+        remote_server=None,
     ):
         """
         Sends an email using data specified in constructor
@@ -453,6 +452,11 @@ class Mail(object):
 
         Returns:
             True on success, False on failure.
+
+        By default, mail.send opens a connection to the smtp server for each mail.
+        This could be costly if you are sending many emails from a queue.
+        Use remote_server to override internal server connection facility,
+        but do remember to clean up after you are done with the server.
 
         Before return, method updates two object's fields:
 
@@ -907,25 +911,27 @@ class Mail(object):
                 smtp_args = self.settings.server.split(":")
                 kwargs = dict(timeout=self.settings.timeout)
                 func = smtplib.SMTP_SSL if self.settings.ssl else smtplib.SMTP
-                server = func(*smtp_args, **kwargs)
+                server = remote_server or func(*smtp_args, **kwargs)
                 try:
-                    if self.settings.tls and not self.settings.ssl:
-                        server.ehlo(self.settings.hostname)
-                        server.starttls()
-                        server.ehlo(self.settings.hostname)
-                    if self.settings.login:
-                        server.login(*self.settings.login.split(":", 1))
+                    if not remote_server:
+                        if self.settings.tls and not self.settings.ssl:
+                            server.ehlo(self.settings.hostname)
+                            server.starttls()
+                            server.ehlo(self.settings.hostname)
+                        if self.settings.login:
+                            server.login(*self.settings.login.split(":", 1))
                     result = server.sendmail(sender, to, payload.as_string())
                 finally:
                     # do not want to hide errors raising some exception here
-                    try:
-                        server.quit()
-                    except smtplib.SMTPException:
-                        # ensure to close any socket with SMTP server
+                    if not remote_server:
                         try:
-                            server.close()
-                        except Exception:
-                            pass
+                            server.quit()
+                        except smtplib.SMTPException:
+                            # ensure to close any socket with SMTP server
+                            try:
+                                server.close()
+                            except Exception:
+                                pass
         except Exception as e:
             logger.warning("Mail.send failure:%s" % e)
             self.result = result
@@ -1947,15 +1953,17 @@ class Auth(AuthAPI):
                 "Please ",
                 A(
                     "login",
-                    _href=self.settings.login_url
-                    + (
-                        "?_next="
-                        + urllib_quote(
-                            current.request.env.http_web2py_component_location
+                    _href=(
+                        self.settings.login_url
+                        + (
+                            "?_next="
+                            + urllib_quote(
+                                current.request.env.http_web2py_component_location
+                            )
                         )
-                    )
-                    if current.request.env.http_web2py_component_location
-                    else "",
+                        if current.request.env.http_web2py_component_location
+                        else ""
+                    ),
                 ),
                 " to view this content.",
                 _class="not-authorized alert alert-block",
@@ -4204,9 +4212,9 @@ class Auth(AuthAPI):
             requires[0] = CRYPT(
                 **requires[0].__dict__
             )  # Copy the existing CRYPT attributes
-            requires[
-                0
-            ].min_length = 0  # But do not enforce minimum length for the old password
+            requires[0].min_length = (
+                0  # But do not enforce minimum length for the old password
+            )
         form = SQLFORM.factory(
             Field(
                 "old_password",
@@ -7082,8 +7090,8 @@ class Wiki(object):
         page = db.wiki_page(slug=slug)
         if not (page and self.can_edit(page)):
             return self.not_authorized(page)
-        self.auth.db.wiki_media.id.represent = (
-            lambda id, row: id
+        self.auth.db.wiki_media.id.represent = lambda id, row: (
+            id
             if not row.filename
             else SPAN(
                 "@////%i/%s.%s"

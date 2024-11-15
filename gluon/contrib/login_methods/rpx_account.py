@@ -14,15 +14,14 @@
 import json
 import os
 import re
+from urllib.parse import urlencode
 
 from gluon import *
-from gluon._compat import urlencode
 from gluon.storage import Storage
 from gluon.tools import fetch
 
 
 class RPXAccount(object):
-
     """
     from gluon.contrib.login_methods.rpx_account import RPXAccount
     auth.settings.actions_disabled=['register','change_password',
