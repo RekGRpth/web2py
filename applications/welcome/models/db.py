@@ -7,14 +7,19 @@
 from gluon.contrib.appconfig import AppConfig
 from gluon.tools import Auth
 import os
+import re
+
+REQUIRED_WEB2PY_VERSION = "3.0.10"
 
 # -------------------------------------------------------------------------
 # This scaffolding model makes your app work on Google App Engine too
 # File is released under public domain and you can use without limitations
 # -------------------------------------------------------------------------
 
-if request.global_settings.web2py_version < "3.0.9":
-    raise HTTP(500, "Requires web2py 3.0.9 or newer")
+web2py_version_string = request.global_settings.web2py_version.split("-")[0]
+web2py_version = list(map(int, web2py_version_string.split(".")[:3]))
+if web2py_version < list(map(int, REQUIRED_WEB2PY_VERSION.split(".")[:3])):
+    raise HTTP(500, f"Requires web2py version {REQUIRED_WEB2PY_VERSION} or newer, not {web2py_version_string}")
 
 # -------------------------------------------------------------------------
 # if SSL/HTTPS is properly configured and you want all HTTP requests to
