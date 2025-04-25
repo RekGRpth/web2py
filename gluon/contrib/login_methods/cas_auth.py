@@ -13,6 +13,7 @@ import xml.parsers.expat as expat
 from urllib.request import urlopen
 
 from gluon import URL, current, redirect
+from pydal._compat import to_bytes, to_native
 
 
 class CasAuth(object):
@@ -114,7 +115,7 @@ class CasAuth(object):
                 self.ticket,
             )
             data = urlopen(url).read()
-            if data.startswith("yes") or data.startswith("no"):
+            if data.startswith(to_bytes("yes")) or data.startswith(to_bytes("no")):
                 data = data.split("\n")
                 if data[0] == "yes":
                     if ":" in data[1]:  # for Compatibility with Custom CAS
