@@ -1665,7 +1665,7 @@ class SQLFORM(FORM):
                         widget = SPAN(v, _id=field_id)
                         self.custom.dspval.id = str(v)
                         xfields.append((row_id, label, widget, comment))
-                    self.record_id = str(record[field.name])
+                    self.record_id = record[field.name]
                 self.custom.widget.id = widget
                 continue
 
@@ -1980,7 +1980,6 @@ class SQLFORM(FORM):
                 for item in requires
                 if hasattr(item, "set_self_id") and self.record_id
             ]
-
         # ## END
 
         fields = {}
