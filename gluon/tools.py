@@ -130,8 +130,12 @@ def replace_id(url, form):
 def prevent_open_redirect(url, host=None):
     # Prevent an attacker from adding an arbitrary url after the
     # _next variable in the request.
-    host = host or current.request.env.http_host
-    default_scheme = "https" if current.request.is_https else "http"
+    if hasattr(current, "request"):
+        host = host or current.request.env.http_host
+        default_scheme = "https" if current.request.is_https else "http"
+    else:
+        host = "localhost"
+        default_scheme = "http"
     original = url
 
     if url is not None:
@@ -146,8 +150,10 @@ def prevent_open_redirect(url, host=None):
 
     if url.startswith("//"):
         url = default_scheme + ":" + url
-    if url.startswith("://"):
+    elif url.startswith("://"):
         url = default_scheme + url
+    elif url.startswith("/") and not url.split("/")[1].isalnum():
+        return None
 
     try:
         parsed = urlparse.urlparse(url)

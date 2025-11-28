@@ -1707,3 +1707,4 @@ class Test_OpenRedirectPrevention(unittest.TestCase):
                 self.assertEqual(prevent_open_redirect(url, "test.com"), url)
         # extra corner cases
         self.assertEqual(prevent_open_redirect("https:/example.com"), None)
+        self.assertEqual(prevent_open_redirect("/%09/www.example.org/"), None)
