@@ -12,6 +12,11 @@ Web2py was created in 2007 for Python 2.7. As of 2024 we support Python 3.9+ and
 We do not recommend using Web2py for new projects but we recommend upgrading to py4web (http://py4web.com), also known as web3py.
 Web2py and Py4web share template language, pydal, rocket3 and similar design phylosophy.
 
+- web2py.2.27.1 is the last version supporting Python 2.7.
+- web2py 3.x only supports Python 3.9+ and it is in limited maintenance mode.
+- Read more about our [https://py4web.com/_documentation/static/en/chapter-15.html](web2py to py4web transition guide).
+- Read more about our [https://github.com/web2py/web2py/blob/master/versioning-and-support-policy.md](Versioning and Support policy).
+
 ## Important reminder about this GIT repo
 
 An important part of web2py is the Database Abstraction Layer (DAL). In early 2015 this was decoupled into a separate code-base ([PyDAL](https://github.com/web2py/pydal)). In terms of git, it is a sub-module of the main repository.

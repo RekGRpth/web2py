@@ -32,7 +32,14 @@
         </div>
       </div>
     </header>
-    {{if response.flash:}}
+    <div style="background:yellow; color:black; width:100%;padding:20px 50px; text-align: center">
+        web2py.2.27.1 is the last version supporting Python 2.7.
+        web2py 3.x only supports Python 3.9+ and it is in limited maintenance mode.
+        We recommend users move on to web2py's successor <a href="https://py4web.com">py4web.</a>.
+        Read more about our <a href="https://py4web.com/_documentation/static/en/chapter-15.html">transition guide</a>.
+        Read more about our <a href="https://github.com/web2py/web2py/blob/master/versioning-and-support-policy.md">Versioning and Support policy</a>
+    </div>  
+      {{if response.flash:}}
     <div class="w2p_flash">
       {{=response.flash}}
     </div>
