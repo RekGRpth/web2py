@@ -53,9 +53,11 @@ from gluon import *
 from gluon.authapi import AuthAPI
 from gluon.contenttype import contenttype
 from gluon.contrib.autolinks import expand_one
-from gluon.contrib.markmin.markmin2html import (replace_at_urls,
-                                                replace_autolinks,
-                                                replace_components)
+from gluon.contrib.markmin.markmin2html import (
+    replace_at_urls,
+    replace_autolinks,
+    replace_components,
+)
 from gluon.fileutils import check_credentials, read_file
 from gluon.storage import Messages, Settings, Storage, StorageList
 from gluon.utils import compare, web2py_uuid
@@ -623,7 +625,7 @@ class Mail(object):
                         "signed",
                         boundary=None,
                         _subparts=None,
-                        **dict(micalg="pgp-sha1", protocol="application/pgp-signature")
+                        **dict(micalg="pgp-sha1", protocol="application/pgp-signature"),
                     )
                     # insert the origin payload
                     payload.attach(payload_in)
@@ -668,7 +670,7 @@ class Mail(object):
                         "encrypted",
                         boundary=None,
                         _subparts=None,
-                        **dict(protocol="application/pgp-encrypted")
+                        **dict(protocol="application/pgp-encrypted"),
                     )
                     p = MIMEBase("application", "pgp-encrypted")
                     p.set_payload("Version: 1\r\n")
@@ -880,7 +882,7 @@ class Mail(object):
                         body=text,
                         html=html,
                         attachments=attachments,
-                        **xcc
+                        **xcc,
                     )
                 elif html and (not raw):
                     result = mail.send_mail(
@@ -889,7 +891,7 @@ class Mail(object):
                         subject=subject,
                         body=text or "",
                         html=html,
-                        **xcc
+                        **xcc,
                     )
                 else:
                     result = mail.send_mail(
@@ -897,7 +899,7 @@ class Mail(object):
                         to=origTo,
                         subject=subject,
                         body=text or "",
-                        **xcc
+                        **xcc,
                     )
             elif self.settings.server == "aws":
                 import boto3
@@ -1483,7 +1485,7 @@ class AuthJWT(object):
                 401,
                 "Not Authorized - need to be logged in, to pass a token "
                 "for refresh or username and password for login",
-                **{"WWW-Authenticate": 'JWT realm="%s"' % self.realm}
+                **{"WWW-Authenticate": 'JWT realm="%s"' % self.realm},
             )
         response.headers["Content-Type"] = "application/json"
         return serializers.json(ret)
@@ -2466,7 +2468,7 @@ class Auth(AuthAPI):
                     **dict(
                         migrate=self._get_migrate(settings.table_cas_name, migrate),
                         fake_migrate=fake_migrate,
-                    )
+                    ),
                 )
         if settings.enable_tokens:
             extra_fields = (
@@ -2492,7 +2494,7 @@ class Auth(AuthAPI):
                     **dict(
                         migrate=self._get_migrate(settings.table_token_name, migrate),
                         fake_migrate=fake_migrate,
-                    )
+                    ),
                 )
         if not db._lazy_tables:
             settings.table_user = db[settings.table_user_name]
@@ -2636,7 +2638,7 @@ class Auth(AuthAPI):
             http_401 = HTTP(
                 401,
                 "Not Authorized",
-                **{"WWW-Authenticate": 'Basic realm="' + basic_realm + '"'}
+                **{"WWW-Authenticate": 'Basic realm="' + basic_realm + '"'},
             )
         if not basic or not basic[:6].lower() == "basic ":
             if basic_auth_realm:
@@ -2813,7 +2815,7 @@ class Auth(AuthAPI):
                             TAG["cas:" + field.name](json.dumps(user[field.name], ensure_ascii=False) if field.type == "json" else user[field.name])
                             for field in self.table_user()
                             if field.readable
-                        ]
+                        ],
                     )
                 )
         else:
@@ -4732,7 +4734,7 @@ class Auth(AuthAPI):
                 table._db.define_table(
                     archive_table_name,
                     Field(current_record, table),
-                    *[field.clone(unique=False) for field in table]
+                    *[field.clone(unique=False) for field in table],
                 )
             archive_table = table._db[archive_table_name]
         new_record = {current_record: form.vars.id}
@@ -4941,7 +4943,7 @@ class Crud(object):  # pragma: no cover
         message=DEFAULT,
         deletable=DEFAULT,
         formname=DEFAULT,
-        **attributes
+        **attributes,
     ):
         if not (isinstance(table, Table) or table in self.db.tables) or (
             isinstance(record, str) and not str(record).isdigit()
@@ -4994,7 +4996,7 @@ class Crud(object):  # pragma: no cover
             upload=self.settings.download_url,
             formstyle=self.settings.formstyle,
             separator=self.settings.label_separator,
-            **attributes  # contains hidden
+            **attributes,  # contains hidden
         )
         self.accepted = False
         self.deleted = False
@@ -5072,7 +5074,7 @@ class Crud(object):  # pragma: no cover
         log=DEFAULT,
         message=DEFAULT,
         formname=DEFAULT,
-        **attributes
+        **attributes,
     ):
         if next is DEFAULT:
             next = self.settings.create_next
@@ -5094,7 +5096,7 @@ class Crud(object):  # pragma: no cover
             message=message,
             deletable=False,
             formname=formname,
-            **attributes
+            **attributes,
         )
 
     def read(self, table, record):
@@ -5184,7 +5186,7 @@ class Crud(object):  # pragma: no cover
         orderby=None,
         limitby=None,
         headers=None,
-        **attr
+        **attr,
     ):
         headers = headers or {}
         rows = self.rows(table, query, fields, orderby, limitby)
@@ -6513,7 +6515,7 @@ class Expose(object):
                         TR(TD(A(folder, _href=URL(args=self.args + [folder]))))
                         for folder in self.folders
                     ],
-                    **dict(_class="table")
+                    **dict(_class="table"),
                 ),
             )
         return ""
@@ -6579,7 +6581,7 @@ class Expose(object):
                         )
                         for f in self.filenames
                     ],
-                    **dict(_class="table")
+                    **dict(_class="table"),
                 ),
             )
         return ""
@@ -6613,7 +6615,7 @@ class Wiki(object):
                 A(t.strip(), _href=URL(args="_search", vars=dict(q=t)))
                 for t in tags or []
                 if t.strip()
-            ]
+            ],
         )
 
     def markmin_render(self, page):
@@ -7391,7 +7393,7 @@ class Wiki(object):
                     groupby=reduce(lambda a, b: a | b, fields),
                     distinct=True,
                     limitby=limitby,
-                )
+                ),
             )
             if request.extension in ("html", "load"):
                 if not pages:
@@ -7410,7 +7412,7 @@ class Wiki(object):
                                 link(t.strip())
                                 for t in p.wiki_page.tags or []
                                 if t.strip()
-                            ]
+                            ],
                         ),
                         _class="w2p_wiki_search_item",
                     )

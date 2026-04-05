@@ -28,23 +28,58 @@ from pydal.adapters.base import CALLABLETYPES
 from pydal.base import DEFAULT
 from pydal.default_validators import default_validators
 from pydal.helpers.classes import Reference, SQLCustomType
-from pydal.helpers.methods import (_repr_ref, bar_encode, merge_tablemaps,
-                                   smart_query)
+from pydal.helpers.methods import _repr_ref, bar_encode, merge_tablemaps, smart_query
 from pydal.objects import Expression, Field, Row, Rows, Set, Table
 
 import gluon.serializers as serializers
 from gluon.globals import current
-from gluon.html import (BR, CAT, COL, COLGROUP, DEFAULT_PASSWORD_DISPLAY, DIV,
-                        FIELDSET, FORM, IMG, INPUT, LABEL, LI, OPTION, SCRIPT,
-                        SELECT, SPAN, STYLE, TABLE, TAG, TBODY, TD, TEXTAREA,
-                        TH, THEAD, TR, UL, URL, XML, A, P, XmlComponent,
-                        truncate_string)
+from gluon.html import (
+    BR,
+    CAT,
+    COL,
+    COLGROUP,
+    DEFAULT_PASSWORD_DISPLAY,
+    DIV,
+    FIELDSET,
+    FORM,
+    IMG,
+    INPUT,
+    LABEL,
+    LI,
+    OPTION,
+    SCRIPT,
+    SELECT,
+    SPAN,
+    STYLE,
+    TABLE,
+    TAG,
+    TBODY,
+    TD,
+    TEXTAREA,
+    TH,
+    THEAD,
+    TR,
+    UL,
+    URL,
+    XML,
+    A,
+    P,
+    XmlComponent,
+    truncate_string,
+)
 from gluon.http import HTTP, redirect
 from gluon.storage import Storage
 from gluon.utils import md5_hash
-from gluon.validators import (IS_DATE, IS_DATETIME, IS_EMPTY_OR,
-                              IS_FLOAT_IN_RANGE, IS_INT_IN_RANGE, IS_LIST_OF,
-                              IS_NOT_EMPTY, IS_STRONG)
+from gluon.validators import (
+    IS_DATE,
+    IS_DATETIME,
+    IS_EMPTY_OR,
+    IS_FLOAT_IN_RANGE,
+    IS_INT_IN_RANGE,
+    IS_LIST_OF,
+    IS_NOT_EMPTY,
+    IS_STRONG,
+)
 
 try:
     import gluon.settings as settings
@@ -393,7 +428,7 @@ class ListWidget(StringWidget):
                     hideerror=k < len(nvalue) - 1,
                     requires=requires,
                 ),
-                **attributes
+                **attributes,
             )
             for (k, v) in enumerate(nvalue)
         ]
@@ -473,7 +508,7 @@ class RadioWidget(OptionsWidget):
                             hideerror=True,
                             _value=k,
                             value=value,
-                            **checked
+                            **checked,
                         ),
                         LABEL(v, _for="%s%s" % (field.name, k)),
                     )
@@ -816,7 +851,7 @@ class AutocompleteWidget(object):
                 ).select(
                     orderby=self.orderby,
                     limitby=self.limitby,
-                    *(self.fields + self.help_fields)
+                    *(self.fields + self.help_fields),
                 )
             elif self.at_beginning:
                 if self.help_fields:
@@ -824,26 +859,30 @@ class AutocompleteWidget(object):
                                ).select(orderby=self.orderby if self.orderby is not None else reduce(lambda a,b: a|b, self.help_fields),
                                         limitby=self.limitby,
                                         distinct=self.distinct,
-                                        *(self.fields + self.help_fields))
+                                        *(self.fields + self.help_fields),
+                                        )
                 else:
                     rows = self.db(field.like(kword + "%", case_sensitive=False)
                                ).select(orderby=self.orderby,
                                         limitby=self.limitby,
                                         distinct=self.distinct,
-                                        *(self.fields + self.help_fields))
+                                        *(self.fields + self.help_fields),
+                                        )
             else:
                 if self.help_fields:
                     rows = self.db(reduce(lambda a,b: a|b, [field1.contains(kword, case_sensitive=False) for field1 in self.help_fields])
                                ).select(orderby=self.orderby if self.orderby is not None else reduce(lambda a,b: a|b, self.help_fields),
                                         limitby=self.limitby,
                                         distinct=self.distinct,
-                                        *(self.fields + self.help_fields))
+                                        *(self.fields + self.help_fields),
+                                        )
                 else:
                     rows = self.db(field.contains(kword, case_sensitive=False)
                                ).select(orderby=self.orderby,
                                         limitby=self.limitby,
                                         distinct=self.distinct,
-                                        *(self.fields + self.help_fields))
+                                        *(self.fields + self.help_fields),
+                                        )
             if rows:
                 if self.is_reference:
                     id_field = self.fields[1]
@@ -873,7 +912,7 @@ class AutocompleteWidget(object):
                             _class="autocomplete",
                             _size=len(rows),
                             _multiple=(len(rows) == 1),
-                            *options
+                            *options,
                         ).xml(),
                     )
                 else:
@@ -887,7 +926,7 @@ class AutocompleteWidget(object):
                             *[
                                 OPTION(s[field.name], _selected=(k == 0))
                                 for k, s in enumerate(rows)
-                            ]
+                            ],
                         ).xml(),
                     )
             else:
@@ -1516,7 +1555,7 @@ class SQLFORM(FORM):
         buttons=["submit"],
         separator=None,
         extra_fields=None,
-        **attributes
+        **attributes,
     ):
         T = current.T
 
@@ -1896,7 +1935,7 @@ class SQLFORM(FORM):
         dbio=True,
         hideerror=False,
         detect_record_change=False,
-        **kwargs
+        **kwargs,
     ):
         """
         Similar to `FORM.accepts` but also does insert, update or delete in DAL.
@@ -1994,7 +2033,7 @@ class SQLFORM(FORM):
             keepvalues,
             onvalidation,
             hideerror=hideerror,
-            **kwargs
+            **kwargs,
         )
 
         self.deleted = request_vars.get(self.FIELDNAME_REQUEST_DELETE, False)
@@ -2428,7 +2467,7 @@ class SQLFORM(FORM):
 
                 operators = SELECT(
                     *[OPTION(T(option), _value=option) for option in options],
-                    _class="form-control"
+                    _class="form-control",
                 )
                 _id = "%s_%s" % (value_id, name)
                 widget_ = None
@@ -2448,7 +2487,7 @@ class SQLFORM(FORM):
                         field.default,
                         _id=_id,
                         _class=widget_._class + " form-control",
-                        **iso_format
+                        **iso_format,
                     )
                 elif field_type == "datetime":
                     iso_format = {"_data-w2p_datetime_format": "%Y-%m-%d %H:%M:%S"}
@@ -2458,7 +2497,7 @@ class SQLFORM(FORM):
                         field.default,
                         _id=_id,
                         _class=widget_._class + " form-control",
-                        **iso_format
+                        **iso_format,
                     )
                 elif hasattr(field.requires, "options"):
                     widget_ = field.widget if field.widget is not None else SQLFORM.widgets.options.widget
@@ -2497,7 +2536,7 @@ class SQLFORM(FORM):
 #                    value_input = SELECT(
 #                        *[OPTION(v, _value=k) for k, v in field.requires.options()],
 #                        _class="form-control",
-#                        **dict(_id=_id)
+#                        **dict(_id=_id),
 #                    )
 
                 new_button = INPUT(
@@ -2547,7 +2586,7 @@ class SQLFORM(FORM):
                 % (field_id, fields_id),
                 _style="float:left",
                 _class="form-control",
-                *selectfields
+                *selectfields,
             ),
         )
 
@@ -3153,7 +3192,7 @@ class SQLFORM(FORM):
                             left=left,
                             orderby=orderby,
                             cacheable=True,
-                            *selectable_columns
+                            *selectable_columns,
                         )
                     except Exception as e:
                         response.flash = T("Internal Error")
@@ -3241,7 +3280,7 @@ class SQLFORM(FORM):
                         ),
                         *hidden_fields,
                         _method="GET",
-                        _action=url
+                        _action=url,
                     ),
                     search_menu,
                 )
@@ -3382,7 +3421,7 @@ class SQLFORM(FORM):
                     limitby=limitby,
                     reusecursor=cursor,
                     cacheable=True,
-                    *table_fields
+                    *table_fields,
                 )
                 next_cursor = dbset._db.get("_lastcursor", None)
             else:
@@ -3392,7 +3431,7 @@ class SQLFORM(FORM):
                     groupby=groupby,
                     limitby=limitby,
                     cacheable=True,
-                    *table_fields
+                    *table_fields,
                 )
                 next_cursor = None
         except SyntaxError:
@@ -3727,7 +3766,7 @@ class SQLFORM(FORM):
         user_signature=True,
         divider=2 * chr(160) + ">" + 2 * chr(160),
         breadcrumbs_class="",
-        **kwargs
+        **kwargs,
     ):
         """
         Builds a system of SQLFORM.grid(s) between any referenced tables
@@ -3974,7 +4013,7 @@ class SQLFORM(FORM):
             links=links,
             links_in_grid=links_in_grid,
             user_signature=user_signature,
-            **kwargs
+            **kwargs,
         )
 
         if isinstance(grid, DIV):
@@ -4071,7 +4110,7 @@ class SQLTABLE(TABLE):
         renderstyle=False,
         cid=None,
         colgroup=False,
-        **attributes
+        **attributes,
     ):
         TABLE.__init__(self, **attributes)
 

@@ -376,15 +376,15 @@ def run(
                         IPython.start_ipython(user_ns=_env)
                         return
                     elif LooseVersion(IPython.__version__) == LooseVersion("1.0.0"):
-                        from IPython.terminal.embed import \
-                            InteractiveShellEmbed
+                        from IPython.terminal.embed import InteractiveShellEmbed
 
                         shell = InteractiveShellEmbed(user_ns=_env)
                         shell()
                         return
                     elif LooseVersion(IPython.__version__) >= LooseVersion("0.11"):
-                        from IPython.frontend.terminal.embed import \
-                            InteractiveShellEmbed
+                        from IPython.frontend.terminal.embed import (
+                            InteractiveShellEmbed,
+                        )
 
                         shell = InteractiveShellEmbed(user_ns=_env)
                         shell()
