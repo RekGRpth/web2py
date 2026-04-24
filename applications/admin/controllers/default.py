@@ -16,6 +16,7 @@ import importlib
 
 from gluon.admin import *
 from gluon.fileutils import abspath, read_file, write_file
+from gluon.restricted import safe_load, safe_loads
 from gluon.utils import web2py_uuid
 from gluon.tools import Config, prevent_open_redirect
 from gluon.compileapp import find_exposed_functions
@@ -79,6 +80,10 @@ def log_progress(app, mode='EDIT', filename=None, progress=0):
             '[%s] %s %s: %s\n' % (now, mode, filename, progress))
 
 
+def _is_within_root(path, root):
+    return path == root or path.startswith(root + os.sep)
+
+
 def safe_open(a, b):
     if (DEMO_MODE or is_gae) and ('w' in b or 'a' in b):
         class tmp:
@@ -95,8 +100,8 @@ def safe_open(a, b):
     web2py_apps_root = os.path.abspath(up(request.folder))
     web2py_deposit_root = os.path.join(up(web2py_apps_root), 'deposit')
 
-    if not (a_for_check.startswith(web2py_apps_root) or
-        a_for_check.startswith(web2py_deposit_root)):
+    allowed_roots = [web2py_apps_root, web2py_deposit_root]
+    if not any(_is_within_root(a_for_check, root) for root in allowed_roots):
         raise HTTP(403)
 
     if 'b' in b:
@@ -123,10 +128,17 @@ def safe_write(a, value, b='w'):
 
 def get_app(name=None):
     app = name or request.args(0)
-    if (app and os.path.exists(apath(app, r=request)) and
-        (not MULTI_USER_MODE or is_manager() or
-         db(db.app.name == app)(db.app.owner == auth.user.id).count())):
-        return app
+    if app:
+        path = apath(app, r=request)
+        web2py_apps_root = os.path.abspath(up(request.folder))
+        path_abs = os.path.abspath(path)
+        if not _is_within_root(path_abs, web2py_apps_root):
+            session.flash = T('App does not exist or you are not authorized')
+            redirect(URL('site'))
+        if (os.path.exists(path) and
+            (not MULTI_USER_MODE or is_manager() or
+             db(db.app.name == app)(db.app.owner == auth.user.id).count())):
+            return app
     session.flash = T('App does not exist or you are not authorized')
     redirect(URL('site'))
 
@@ -350,7 +362,7 @@ def report_progress(app):
     regex = re.compile(r'\[(.*?)\][^\:]+\:\s+(\-?\d+)')
     if not os.path.exists(progress_file):
         return []
-    matches = regex.findall(open(progress_file, 'r').read())
+    matches = regex.findall(safe_open(progress_file, 'r').read())
     events, counter = [], 0
     for m in matches:
         if not m:
@@ -558,7 +570,7 @@ def delete():
     if dialog.accepted:
         try:
             full_path = apath(filename, r=request)
-            lineno = count_lines(open(full_path, 'r').read())
+            lineno = count_lines(safe_open(full_path, 'r').read())
             os.unlink(full_path)
             log_progress(app, 'DELETE', filename, progress=-lineno)
             session.flash = T('file "%(filename)s" deleted',
@@ -1523,8 +1535,13 @@ def create_file():
 
 
 def listfiles(app, dir, regexp=r'.*\.py$'):
+    path = apath('%(app)s/%(dir)s/' % {'app': app, 'dir': dir}, r=request)
+    web2py_apps_root = os.path.abspath(up(request.folder))
+    path_abs = os.path.abspath(path)
+    if not _is_within_root(path_abs, web2py_apps_root):
+        return []
     files = sorted(
-        listdir(apath('%(app)s/%(dir)s/' % {'app': app, 'dir': dir}, r=request), regexp))
+        listdir(path, regexp))
     files = [x.replace('\\', '/') for x in files if not x.endswith('.bak')]
     return files
 
@@ -1639,12 +1656,10 @@ def errors():
             try:
                 fullpath_file = safe_open(fullpath, 'rb')
                 try:
-                    error = pickle.load(fullpath_file)
+                    error = safe_load(fullpath_file)
                 finally:
                     fullpath_file.close()
-            except IOError:
-                continue
-            except EOFError:
+            except (IOError, pickle.UnpicklingError, EOFError):
                 continue
 
             hash = hashlib.md5(error['traceback'].encode("utf8")).hexdigest()
@@ -1681,7 +1696,7 @@ def errors():
 
         for fn in tk_db(tk_table.id > 0).select():
             try:
-                error = pickle.loads(fn.ticket_data)
+                error = safe_loads(fn.ticket_data)
                 hash = hashlib.md5(error['traceback']).hexdigest()
 
                 if hash in delete_hashes:
@@ -1698,7 +1713,7 @@ def errors():
                                                 pickel=error, causer=error_causer,
                                                 last_line=last_line, hash=hash,
                                                 ticket=fn.ticket_id)
-            except AttributeError as e:
+            except (AttributeError, pickle.UnpicklingError, EOFError):
                 tk_db(tk_table.id == fn.id).delete()
                 tk_db.commit()
 

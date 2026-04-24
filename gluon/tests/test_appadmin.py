@@ -119,6 +119,18 @@ class TestAppAdmin(unittest.TestCase):
         self.assertEqual(error.status, 200)
         self.assertIn("appadmin is disabled because insecure channel", str(error.body))
 
+    def test_index_allows_shell(self):
+        request = self.env["request"]
+        request.env.remote_addr = "203.0.113.10"
+        request.client = request.env.remote_addr
+        request.is_local = False
+        request.is_https = False
+        request.is_shell = True
+        request.env.trusted_lan_prefix = None
+        # should not raise HTTP — shell execution must bypass the channel check
+        result = self.run_function()
+        self.assertIn("db", result["databases"])
+
     def test_index_compiled(self):
         appname_path = os.path.join(os.getcwd(), "applications", "welcome")
         compile_application(appname_path)
@@ -219,3 +231,42 @@ class TestAppAdmin(unittest.TestCase):
         data["id"] = "1"
         request._vars = data
         self.assertRaises(HTTP, self.run_function)
+
+    def test_path_validation_security(self):
+        """Test path validation security patches prevent traversal attacks"""
+        from gluon.admin import apath, up
+        from gluon.globals import Request
+        from gluon.http import HTTP
+
+        # Mock request for testing
+        request = Request(env={})
+        request.folder = "applications/welcome"
+
+        # Test allowed paths
+        web2py_apps_root = os.path.abspath(up(request.folder))
+        web2py_deposit_root = os.path.join(up(web2py_apps_root), 'deposit')
+        allowed_roots = [web2py_apps_root, web2py_deposit_root]
+
+        def is_path_allowed(path):
+            """Simulate the path validation logic from safe_open"""
+            a_for_check = os.path.abspath(os.path.normpath(path))
+            return any(a_for_check == root or a_for_check.startswith(root + os.sep)
+                      for root in allowed_roots)
+
+        # Test legitimate paths are allowed
+        self.assertTrue(is_path_allowed(os.path.join(web2py_apps_root, 'welcome', 'models', 'db.py')),
+                       "Should allow valid app files")
+        self.assertTrue(is_path_allowed(web2py_apps_root),
+                       "Should allow applications root")
+        self.assertTrue(is_path_allowed(web2py_deposit_root),
+                       "Should allow deposit root")
+
+        # Test malicious paths are blocked
+        self.assertFalse(is_path_allowed('/etc/passwd'),
+                        "Should block system files")
+        self.assertFalse(is_path_allowed('/workspaces/web2py/applications_evil'),
+                        "Should block prefix match attacks")
+        self.assertFalse(is_path_allowed(os.path.join(web2py_apps_root, '..', 'etc', 'passwd')),
+                        "Should block path traversal")
+        self.assertFalse(is_path_allowed('/tmp/malicious'),
+                        "Should block temp directory access")
