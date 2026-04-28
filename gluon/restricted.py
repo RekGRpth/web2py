@@ -10,6 +10,7 @@ Restricted environment to execute application's code
 """
 
 import builtins
+import importlib
 import io
 import logging
 import os
@@ -35,10 +36,18 @@ __all__ = [
     "safe_loads",
 ]
 
+DEFAULT_SAFE_GLOBALS = {
+    "decimal": {"Decimal"},
+    "datetime": {"date", "datetime", "time", "timedelta"},
+    "uuid": {"UUID"},
+    "pydal.objects": {"Row", "Rows"},
+}
+
 
 class SafeUnpickler(pickle.Unpickler):
     """
-    Restricted unpickler that only allows a small set of safe builtins.
+    Restricted unpickler that only allows a small set of safe builtins
+    and a small set of safe globals.
     """
 
     safe_builtins = {
@@ -57,20 +66,53 @@ class SafeUnpickler(pickle.Unpickler):
         "NoneType",
     }
 
+    def __init__(self, file_obj, allowed_classes=None):
+        super(SafeUnpickler, self).__init__(file_obj)
+        self.allowed_classes = self._normalize_allowed_classes(allowed_classes)
+
+    @staticmethod
+    def _normalize_allowed_classes(allowed_classes):
+        if not allowed_classes:
+            return {}
+        normalized = {}
+        for module, names in allowed_classes.items():
+            if isinstance(names, str):
+                normalized[module] = {names}
+            else:
+                normalized[module] = set(names)
+        return normalized
+
     def find_class(self, module, name):
         if module == "builtins" and name in self.safe_builtins:
             return getattr(builtins, name)
+        if module in DEFAULT_SAFE_GLOBALS and name in DEFAULT_SAFE_GLOBALS[module]:
+            try:
+                mod = importlib.import_module(module)
+            except ImportError:
+                raise pickle.UnpicklingError(
+                    "global '%s.%s' is forbidden" % (module, name)
+                )
+            return getattr(mod, name)
+        if module in self.allowed_classes and name in self.allowed_classes[module]:
+            try:
+                mod = importlib.import_module(module)
+            except ImportError:
+                raise pickle.UnpicklingError(
+                    "global '%s.%s' is forbidden" % (module, name)
+                )
+            return getattr(mod, name)
+        logger.warning("SafeUnpickler blocked: '%s.%s'", module, name)
         raise pickle.UnpicklingError("global '%s.%s' is forbidden" % (module, name))
 
 
-def safe_load(file_obj):
-    return SafeUnpickler(file_obj).load()
+def safe_load(file_obj, allowed_classes=None):
+    return SafeUnpickler(file_obj, allowed_classes=allowed_classes).load()
 
 
-def safe_loads(data):
+def safe_loads(data, allowed_classes=None):
     if isinstance(data, str):
         data = data.encode("latin-1")
-    return SafeUnpickler(io.BytesIO(data)).load()
+    return SafeUnpickler(io.BytesIO(data), allowed_classes=allowed_classes).load()
 
 
 class TicketStorage(Storage):
@@ -137,6 +179,10 @@ class TicketStorage(Storage):
             )
         return table
 
+    # gluon.html.XML objects are stored in ticket snapshots for request/response/session.
+    # XML uses XML_unpickle as its __reduce__ helper, so both must be allowed.
+    TICKET_ALLOWED_CLASSES = {"gluon.html": {"XML", "XML_unpickle"}}
+
     def load(
         self,
         request,
@@ -149,7 +195,7 @@ class TicketStorage(Storage):
             except IOError:
                 return {}
             try:
-                return safe_load(ef)
+                return safe_load(ef, allowed_classes=self.TICKET_ALLOWED_CLASSES)
             except (pickle.UnpicklingError, EOFError):
                 return {}
             finally:
@@ -160,7 +206,7 @@ class TicketStorage(Storage):
             if not rows:
                 return {}
             try:
-                return safe_loads(rows[0].ticket_data)
+                return safe_loads(rows[0].ticket_data, allowed_classes=self.TICKET_ALLOWED_CLASSES)
             except (pickle.UnpicklingError, EOFError):
                 return {}
 
@@ -200,8 +246,9 @@ class RestrictedError(Exception):
                 self.snapshot = snapshot(
                     context=10, code=code, environment=self.environment
                 )
-            except:
+            except Exception as e:
                 self.snapshot = {}
+                logger.warning("snapshot() failed: %s", e)
         else:
             self.traceback = "(no error)"
             self.snapshot = {}
@@ -286,9 +333,7 @@ def restricted(ccode, environment=None, layer="Unknown", scode=None):
 
 def snapshot(info=None, context=5, code=None, environment=None):
     """Return a dict describing a given traceback (based on cgitb.text)."""
-    import cgitb
     import inspect
-    import linecache
     import pydoc
     import time
 
@@ -329,17 +374,6 @@ def snapshot(info=None, context=5, code=None, environment=None):
         # basic frame information
         f = {"file": file, "func": func, "call": call, "lines": {}, "lnum": lnum}
 
-        highlight = {}
-
-        def reader(lnum=[lnum]):
-            highlight[lnum[0]] = 1
-            try:
-                return linecache.getline(file, lnum[0])
-            finally:
-                lnum[0] += 1
-
-        vars = cgitb.scanvars(reader, frame, locals)
-
         # if it is a view, replace with generated code
         if file.endswith("html"):
             lmin = lnum > context and (lnum - context) or 0
@@ -353,19 +387,10 @@ def snapshot(info=None, context=5, code=None, environment=None):
                 f["lines"][i] = line.rstrip()
                 i += 1
 
-        # dump local variables (referenced in current line only)
+        # dump all local variables in this frame
         f["dump"] = {}
-        for name, where, value in vars:
-            if name in f["dump"]:
-                continue
-            if value is not cgitb.__UNDEF__:
-                if where == "global":
-                    name = "global " + name
-                elif where != "local":
-                    name = where + name.split(".")[-1]
-                f["dump"][name] = pydoc.text.repr(value)
-            else:
-                f["dump"][name] = "undefined"
+        for name, value in locals.items():
+            f["dump"][name] = pydoc.text.repr(value)
 
         s["frames"].append(f)
 

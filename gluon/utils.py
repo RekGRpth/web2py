@@ -11,6 +11,7 @@ This file specifically includes utilities for security.
 --------------------------------------------------------
 """
 
+import ast
 import base64
 import hashlib
 import hmac
@@ -109,6 +110,38 @@ def get_callable_argspec(fn):
     return inspect.getargspec(inspectable)
 
 
+def safe_eval_dict(s):
+    """Parse keyword-style arguments into a dict.
+
+    Example: 'foo="hello, world", bar=1'
+    """
+    if not s:
+        return {}
+    source = "f(%s)" % s
+    try:
+        node = ast.parse(source, mode="eval")
+    except SyntaxError:
+        return {}
+    if not isinstance(node, ast.Expression) or not isinstance(node.body, ast.Call):
+        return {}
+    result = {}
+    for kw in node.body.keywords:
+        if kw.arg is None:
+            continue
+        try:
+            result[kw.arg] = ast.literal_eval(kw.value)
+        except (ValueError, SyntaxError):
+            if hasattr(ast, "get_source_segment"):
+                result[kw.arg] = ast.get_source_segment(source, kw.value)
+            elif isinstance(kw.value, ast.Name):
+                result[kw.arg] = kw.value.id
+            elif isinstance(kw.value, ast.Constant):
+                result[kw.arg] = kw.value.value
+            else:
+                result[kw.arg] = None
+    return result
+
+
 def pad(s, n=32):
     """does padding according to PKCS7v1.5 https://www.ietf.org/rfc/rfc2315.txt"""
     padlen = n - len(s) % n
@@ -144,7 +177,14 @@ def secure_dumps(data, encryption_key, hash_key=None, compression_level=None):
     return b"hmac256:" + signature + b":" + encrypted_data
 
 
-def secure_loads(data, encryption_key, hash_key=None, compression_level=None):
+def secure_loads(
+    data,
+    encryption_key,
+    hash_key=None,
+    compression_level=None,
+    safe_unpickle=True,
+    allowed_classes=None,
+):
     """loads a signed data dump"""
     components = data.count(b":")
     if components == 1:
@@ -171,6 +211,10 @@ def secure_loads(data, encryption_key, hash_key=None, compression_level=None):
         data = unpad(AES_dec(cipher, encrypted_data))
         if compression_level:
             data = zlib.decompress(data)
+        if safe_unpickle:
+            from gluon.restricted import safe_loads as safe_loads_restricted
+
+            return safe_loads_restricted(data, allowed_classes=allowed_classes)
         return pickle.loads(data)
     except Exception:
         return None
