@@ -1,3 +1,7 @@
+.*
+!.github
+!.github/workflows
+!.github/workflows/*
 *.pyc
 *.pyo
 *.js.gz
