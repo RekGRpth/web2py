@@ -16,7 +16,7 @@ from gluon.html import (ASSIGNJS, BEAUTIFY, BODY, BR, BUTTON, CAT, CENTER,
                         OBJECT, OL, OPTGROUP, OPTION, PRE, SCRIPT, SELECT,
                         SPAN, STRONG, STYLE, TABLE, TAG, TBODY, TD, TEXTAREA,
                         TFOOT, TH, THEAD, TITLE, TR, TT, UL, URL, XHTML, XML,
-                        A, B, I, P, TAG_pickler, TAG_unpickler, XML_pickle,
+                        A, B, I, P, SAFEJSON, SafeString, TAG_pickler, TAG_unpickler, XML_pickle,
                         XML_unpickle, truncate_string, verifyURL,
                         web2pyHTMLParser, xmlescape)
 from gluon.storage import Storage
@@ -922,6 +922,13 @@ class TestBareHelpers(unittest.TestCase):
         # TODO check tags content
         self.assertEqual(len(FORM("<>", _a="1", _b="2").as_xml()), 326)
 
+    def test_FORM_add_button_escapes_redirect_url(self):
+        form = FORM(INPUT(_type="submit", _value="Go"))
+        form.add_button("Cancel", "/path?x=bar'")
+        html = form.xml()
+        self.assertIn('window.location=&quot;/path?x=bar&#x27;&quot;;return false', html)
+        self.assertNotIn("window.location='", html)
+
     def test_BEAUTIFY(self):
         # self.assertEqual(BEAUTIFY(['a', 'b', {'hello': 'world'}]).xml(),
         #                 '<div><table><tr><td><div>a</div></td></tr><tr><td><div>b</div></td></tr><tr><td><div><table><tr><td style="font-weight:bold;vertical-align:top;">hello</td><td style="vertical-align:top;">:</td><td><div>world</div></td></tr></table></div></td></tr></table></div>')
@@ -1069,6 +1076,16 @@ class TestBareHelpers(unittest.TestCase):
         self.assertEqual(ASSIGNJS(var1="1").xml(), 'var var1 = "1";\n')
         # int assignation
         self.assertEqual(ASSIGNJS(var2=2).xml(), "var var2 = 2;\n")
+
+    def test_SAFEJSON(self):
+        obj = {"x": "</script><img src=x onerror=alert(1)>"}
+        s = SAFEJSON(obj)
+        assert isinstance(s, SafeString)
+        xml = s.xml()
+        # ensure raw '</' does not appear
+        assert "</" not in xml
+        # ensure we used the unicode-escaped form
+        assert "\\u003c/" in xml
 
 
 class TestData(unittest.TestCase):
