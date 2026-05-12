@@ -232,6 +232,106 @@ class testResponse(unittest.TestCase):
         content = return_includes(response)
         self.assertEqual(content, "")
 
+    def test_enable_csp_rejects_injected_policy_tokens(self):
+        response = Response()
+        with self.assertRaises(ValueError):
+            response.enable_csp(script_src="'self'; img-src *")
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = "script>src 'self'"
+        with self.assertRaises(ValueError):
+            response.enable_csp()
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = "report-to group,name"
+        with self.assertRaises(ValueError):
+            response.enable_csp()
+
+        response = Response()
+        with self.assertRaises(ValueError):
+            response.enable_csp(report_to="group,name")
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = "report-to group,name"
+        with self.assertRaises(ValueError):
+            response.enable_csp()
+
+        response = Response()
+        with self.assertRaises(ValueError):
+            response.enable_csp(script_src="https://good.example/\x00evil")
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = "default-src 'self'; report-to group,name"
+        with self.assertRaises(ValueError):
+            response.enable_csp()
+
+    def test_enable_csp_rejects_non_string_iterable_tokens(self):
+        for invalid in ([None], [123], [b"foo"]):
+            response = Response()
+            with self.assertRaises(TypeError):
+                response.enable_csp(script_src=invalid)
+
+    def test_enable_csp_accepts_valid_policy_tokens(self):
+        response = Response()
+        response.enable_csp(
+            script_src=(
+                "'self' 'none' 'unsafe-inline' 'unsafe-eval' "
+                "'nonce-abcDEF0123+/_=' "
+                "'sha256-abcDEF0123+/_=' "
+                "*.example.com https://cdn.example.com blob: data: ws: wss:"
+            ),
+            report_uri="https://example.com/report",
+            report_to="csp-endpoint",
+            sandbox="allow-scripts allow-same-origin",
+            upgrade_insecure_requests="",
+        )
+        csp = response.headers["Content-Security-Policy"]
+        self.assertIn("'self'", csp)
+        self.assertIn("'unsafe-inline'", csp)
+        self.assertIn("'nonce-abcDEF0123+/_='", csp)
+        self.assertIn("'sha256-abcDEF0123+/_='", csp)
+        self.assertIn("*.example.com", csp)
+        self.assertIn("blob:", csp)
+        self.assertIn("data:", csp)
+        self.assertIn("ws:", csp)
+        self.assertIn("wss:", csp)
+        self.assertIn("report-uri https://example.com/report", csp)
+        self.assertIn("report-to csp-endpoint", csp)
+        self.assertIn("sandbox allow-scripts allow-same-origin", csp)
+        self.assertIn("upgrade-insecure-requests", csp)
+
+    def test_enable_csp_accepts_existing_policy_lists(self):
+        response = Response()
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self', report-uri https://example.com/report"
+        )
+        response.enable_csp(report_to="csp-endpoint")
+        csp = response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'self'", csp)
+        self.assertIn("report-uri https://example.com/report", csp)
+        self.assertIn("report-to csp-endpoint", csp)
+        self.assertIn("script-src 'self'", csp)
+        self.assertIn("style-src 'self'", csp)
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self',report-uri https://example.com/report"
+        )
+        response.enable_csp(report_to="csp-endpoint")
+        csp = response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'self'", csp)
+        self.assertIn("report-uri https://example.com/report", csp)
+        self.assertIn("report-to csp-endpoint", csp)
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self',x-foo bar"
+        )
+        response.enable_csp()
+        csp = response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'self'", csp)
+        self.assertIn("x-foo bar", csp)
+
     def test_cookies(self):
         current = setup_clean_session()
         cookie = str(current.response.cookies)
@@ -292,6 +392,78 @@ class testResponse(unittest.TestCase):
         current.session._fixup_before_save()
         cookie = str(current.response.cookies)
         self.assertTrue("samesite=strict" in cookie.lower())
+
+    def test_stream_attachment_filename_encodes_quote(self):
+        response = Response()
+        request = Request(env={})
+        payload = BytesIO(b"hello")
+        filename = 'a"b.txt'
+
+        response.stream(payload, request=request, attachment=True, filename=filename)
+
+        disposition = response.headers["Content-Disposition"]
+        self.assertEqual(
+            disposition,
+            'attachment; filename="a%22b.txt"',
+        )
+
+    def test_stream_attachment_filename_encodes_semicolon(self):
+        response = Response()
+        request = Request(env={})
+        payload = BytesIO(b"hello")
+        filename = "a; filename=evil.txt"
+
+        response.stream(payload, request=request, attachment=True, filename=filename)
+
+        disposition = response.headers["Content-Disposition"]
+        self.assertEqual(
+            disposition,
+            'attachment; filename="a%3B%20filename%3Devil.txt"',
+        )
+        self.assertEqual(disposition.count(";"), 1)
+        self.assertNotIn("filename=evil.txt", disposition)
+
+    def test_stream_attachment_filename_encodes_crlf(self):
+        response = Response()
+        request = Request(env={})
+        payload = BytesIO(b"hello")
+        filename = "a.txt\r\nX-Evil: yes"
+
+        response.stream(payload, request=request, attachment=True, filename=filename)
+
+        disposition = response.headers["Content-Disposition"]
+        self.assertEqual(
+            disposition,
+            'attachment; filename="a.txt%0D%0AX-Evil%3A%20yes"',
+        )
+        self.assertNotIn("\r", disposition)
+        self.assertNotIn("\n", disposition)
+
+    def test_stream_attachment_safe_filenames_compatibility(self):
+        request = Request(env={})
+        payload = BytesIO(b"hello")
+        cases = [
+            ("report.csv", 'attachment; filename="report.csv"'),
+            ("my report.txt", 'attachment; filename="my%20report.txt"'),
+            ("caf\u00e9.txt", 'attachment; filename="caf%C3%A9.txt"'),
+            ("100%done.txt", 'attachment; filename="100%25done.txt"'),
+        ]
+        for filename, expected in cases:
+            response = Response()
+            response.stream(payload, request=request, attachment=True, filename=filename)
+            self.assertEqual(response.headers["Content-Disposition"], expected)
+
+    def test_stream_attachment_bytes_filename_compatibility(self):
+        response = Response()
+        request = Request(env={})
+        payload = BytesIO(b"hello")
+
+        response.stream(payload, request=request, attachment=True, filename=b"caf\xc3\xa9.txt")
+
+        self.assertEqual(
+            response.headers["Content-Disposition"],
+            'attachment; filename="caf%C3%A9.txt"',
+        )
 
     def test_include_meta(self):
         response = Response()

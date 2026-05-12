@@ -503,3 +503,141 @@ def safe_path_join(*paths):
     if not (result == root or result.startswith(root + os.sep)):
         raise ValueError("Unsafe path: %s is not inside %s" % (result, root))
     return result
+
+def safe_eval_expression(text, allowed_names=None):
+    """Security utilities for web2py.
+
+    This module provides a shared, hardened expression evaluator used by
+    appadmin to safely evaluate user-supplied query and orderby expressions.
+
+    Safely evaluate a Python expression with strict AST validation.
+
+    Blocks dangerous operations (function calls, comprehensions, imports,
+    dunder/private attributes, subscripting, and all statement nodes).
+
+    Args:
+        text (str): expression to evaluate
+        allowed_names (iterable|dict|set): names allowed in the expression
+
+    Returns:
+        The result of evaluating the expression in a tightly restricted namespace.
+
+    Raises:
+        ValueError: on unsafe constructs or evaluation failure
+    """
+    # Normalize allowed_names. If caller passed a mapping (e.g. databases)
+    # keep a reference to it (allowed_mapping) so we can populate the
+    # evaluation namespace only with explicitly allowed entries.
+    allowed_mapping = None
+    if allowed_names is None:
+        allowed_names = set()
+    elif isinstance(allowed_names, dict):
+        allowed_mapping = allowed_names
+        allowed_names = set(allowed_names.keys())
+    else:
+        allowed_names = set(allowed_names)
+
+    SAFE_FIELD_METHODS = frozenset({
+        "belongs", "like", "ilike", "startswith", "endswith",
+        "contains", "upper", "lower", "year", "month", "day",
+        "hour", "minutes", "seconds", "regexp",
+    })
+    # DAL Set methods (underscore-prefixed) allowed only when called on a chain
+    # rooted in a name from allowed_names (e.g. db()._select(...) is fine;
+    # untrusted_obj._select(...) is not).
+    SAFE_SET_METHODS = frozenset({"_select"})
+
+    def ast_root_name(node):
+        while True:
+            if isinstance(node, ast.Name):
+                return node.id
+            elif isinstance(node, ast.Attribute):
+                node = node.value
+            elif isinstance(node, ast.Call):
+                node = node.func
+            else:
+                return None
+
+    DANGEROUS_NODES = (
+        ast.Lambda,
+        ast.Subscript,
+        ast.ListComp,
+        ast.SetComp,
+        ast.DictComp,
+        ast.GeneratorExp,
+        ast.Import,
+        ast.ImportFrom,
+        ast.For,
+        ast.While,
+        ast.If,
+        ast.Try,
+        ast.With,
+        ast.Raise,
+        ast.Assert,
+        ast.Delete,
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.ClassDef,
+        ast.Assign,
+        ast.AugAssign,
+        ast.AnnAssign,
+        ast.Global,
+        ast.Nonlocal,
+        ast.Return,
+        ast.Yield,
+        ast.YieldFrom,
+        ast.Await,
+        ast.FormattedValue,
+        ast.JoinedStr,
+        ast.IfExp,            # ternary: a if b else c
+        ast.NamedExpr,        # walrus :=
+    )
+
+    try:
+        tree = ast.parse(text, mode="eval")
+    except SyntaxError as e:
+        raise ValueError("Invalid expression: %s" % str(e))
+
+    for node in ast.walk(tree):
+        if isinstance(node, DANGEROUS_NODES):
+            raise ValueError("unsafe appadmin expression")
+        if isinstance(node, ast.Attribute):
+            if node.attr.startswith("_"):
+                if not (node.attr in SAFE_SET_METHODS
+                        and ast_root_name(node.value) in allowed_names):
+                    raise ValueError("unsafe appadmin expression")
+        if isinstance(node, ast.Name):
+            if node.id not in allowed_names:
+                raise ValueError("unsafe appadmin expression")
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Name):
+                # e.g. db() — calling a trusted object directly
+                if func.id not in allowed_names:
+                    raise ValueError("unsafe appadmin expression")
+            elif isinstance(func, ast.Attribute):
+                if func.attr in SAFE_FIELD_METHODS:
+                    pass  # safe DAL query method
+                elif (func.attr in SAFE_SET_METHODS
+                      and ast_root_name(func.value) in allowed_names):
+                    pass  # _select on a trusted Set chain
+                else:
+                    raise ValueError("unsafe appadmin expression")
+            else:
+                raise ValueError("unsafe appadmin expression")
+
+
+    # Build restricted namespace containing only the allowed names from the
+    # provided mapping (if any). This ensures we only expose the database
+    # objects that the caller explicitly allowed.
+    namespace = {"__builtins__": None}
+    if allowed_mapping is not None:
+        namespace.update({k: allowed_mapping[k] for k in allowed_names if k in allowed_mapping})
+
+    # Evaluate in the restricted namespace
+    try:
+        return eval(compile(tree, "<appadmin>", "eval"), namespace)
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError("Expression evaluation failed: %s" % str(e))
