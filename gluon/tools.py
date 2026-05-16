@@ -1602,6 +1602,7 @@ class Auth(AuthAPI):
         auth_two_factor_tries_left=3,
         bulk_register_enabled=False,
         captcha=None,
+        cas_allowed_services=None,
         cas_maps=None,
         client_side=True,
         formstyle=None,
@@ -2718,6 +2719,58 @@ class Auth(AuthAPI):
             return False
         return user
 
+    def _is_allowed_cas_service(self, url):
+        # The CAS provider redirects an authenticated user to `service` with a
+        # freshly-minted ticket appended. Without validation, an attacker
+        # phishes the victim to /user/cas/login?service=https://attacker/ and
+        # receives a valid ticket they can replay against any relying party
+        # that trusts this provider (CWE-601 + credential leak). The CAS
+        # protocol therefore requires the provider to enforce a service-URL
+        # allowlist; `cas_allowed_services` is that allowlist.
+        #
+        # Accepted values:
+        #   None        - deny all external services (default; only allow
+        #                 services whose host matches `cas_domains`)
+        #   list/tuple  - of allowed URL strings. An entry ending in "/"
+        #                 matches by prefix; otherwise the URL or its origin
+        #                 ("scheme://host[:port]") must match exactly. The
+        #                 trailing-slash rule prevents prefix-confusion
+        #                 (`https://good.example` matching
+        #                 `https://good.example.attacker.com/...`).
+        #   callable    - `f(url) -> bool`
+        #
+        # Only https:// service URLs are accepted. http:// would expose the
+        # CAS ticket in plaintext in transit and in proxy/server access logs.
+        if not url or not isinstance(url, str):
+            return False
+        if any(ord(c) < 0x20 or ord(c) == 0x7F for c in url):
+            return False
+        try:
+            parsed = urlparse.urlparse(url)
+        except ValueError:
+            return False
+        if parsed.scheme != "https" or not parsed.netloc:
+            return False
+        allowed = self.settings.cas_allowed_services
+        if allowed is None:
+            return parsed.netloc in (self.settings.cas_domains or [])
+        if callable(allowed):
+            try:
+                return bool(allowed(url))
+            except Exception:
+                return False
+        if not isinstance(allowed, (list, tuple)):
+            return False
+        origin = "%s://%s" % (parsed.scheme, parsed.netloc)
+        for entry in allowed:
+            if not isinstance(entry, str):
+                continue
+            if url == entry or origin == entry.rstrip("/"):
+                return True
+            if entry.endswith("/") and url.startswith(entry):
+                return True
+        return False
+
     def cas_login(
         self,
         next=DEFAULT,
@@ -2730,10 +2783,16 @@ class Auth(AuthAPI):
         response = current.response
         session = current.session
         db, table = self.db, self.table_cas()
-        session._cas_service = request.vars.service or session._cas_service
+        incoming_service = request.vars.service
+        if incoming_service is not None and not self._is_allowed_cas_service(
+            incoming_service
+        ):
+            raise HTTP(403, "service not allowed")
+        session._cas_service = incoming_service or session._cas_service
         if (
             request.env.http_host not in self.settings.cas_domains
             or not session._cas_service
+            or not self._is_allowed_cas_service(session._cas_service)
         ):
             raise HTTP(403, "not authorized")
 
@@ -2784,6 +2843,12 @@ class Auth(AuthAPI):
         renew = "renew" in request.vars
         row = table(ticket=ticket)
         success = False
+        if row and not self._is_allowed_cas_service(row.service):
+            # Refuse to validate a ticket whose stored service URL is no
+            # longer in the allowlist (e.g. allowlist tightened after the
+            # ticket was minted, or ticket forged in an older version).
+            row.delete_record()
+            row = None
         if row:
             userfield = (
                 self.settings.login_userfield or "username"

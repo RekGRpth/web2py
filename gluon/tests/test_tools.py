@@ -1853,3 +1853,180 @@ class Test_OpenRedirectPrevention(unittest.TestCase):
                 prevent_open_redirect(c + "//evil.com", "test.com"), None)
             self.assertEqual(
                 prevent_open_redirect("/foo" + c + "bar", "test.com"), None)
+
+
+class TestCASServiceAllowlist(unittest.TestCase):
+    """Regression tests for the CAS provider service-URL allowlist.
+
+    Before this guard was added, `Auth.cas_login` accepted any value for
+    `request.vars.service` and redirected the authenticated user there with
+    a freshly-minted CAS ticket appended, leaking the ticket to attacker-
+    controlled origins.
+    """
+
+    def setUp(self):
+        request = Request(env={})
+        request.application = "a"
+        request.controller = "c"
+        request.function = "f"
+        request.folder = "applications/admin"
+        request.env.http_host = "cas.example.com"
+        request.env.remote_addr = "127.0.0.1"
+        response = Response()
+        session = Session()
+        T = TranslatorFactory("", "en")
+        session.connect(request, response)
+        from gluon.globals import current
+
+        current.request = request
+        current.response = response
+        current.session = session
+        current.T = T
+        self.current = current
+        self.request = request
+        self.db = DAL(DEFAULT_URI, check_reserved=["all"])
+        self.auth = Auth(self.db)
+        self.auth.define_tables(username=True, signature=False)
+        self.auth.settings.cas_domains = ["cas.example.com"]
+
+    def tearDown(self):
+        self.db.commit()
+        self.db.close()
+
+    def test_default_denies_external_service(self):
+        # No allowlist configured → only same-host services accepted.
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("https://evil.example/")
+        )
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("http://evil.example/path")
+        )
+
+    def test_default_allows_same_host_service(self):
+        self.assertTrue(
+            self.auth._is_allowed_cas_service("https://cas.example.com/app")
+        )
+
+    def test_list_allowlist_exact_and_origin_match(self):
+        self.auth.settings.cas_allowed_services = [
+            "https://relying.example/app",
+            "https://other.example",
+        ]
+        self.assertTrue(
+            self.auth._is_allowed_cas_service("https://relying.example/app")
+        )
+        self.assertTrue(
+            self.auth._is_allowed_cas_service("https://other.example")
+        )
+        # Different path, no trailing-slash prefix entry → reject.
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("https://relying.example/other")
+        )
+
+    def test_list_allowlist_prefix_requires_trailing_slash(self):
+        # Prefix-match entries must end with "/" so that "https://good.example"
+        # does not match "https://good.example.attacker.com/...".
+        self.auth.settings.cas_allowed_services = ["https://good.example/"]
+        self.assertTrue(
+            self.auth._is_allowed_cas_service("https://good.example/")
+        )
+        self.assertTrue(
+            self.auth._is_allowed_cas_service("https://good.example/anything")
+        )
+        self.assertFalse(
+            self.auth._is_allowed_cas_service(
+                "https://good.example.attacker.com/x"
+            )
+        )
+
+    def test_callable_allowlist(self):
+        self.auth.settings.cas_allowed_services = (
+            lambda u: u.startswith("https://ok.example/")
+        )
+        self.assertTrue(
+            self.auth._is_allowed_cas_service("https://ok.example/foo")
+        )
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("https://nope.example/foo")
+        )
+
+    def test_rejects_non_https_schemes(self):
+        # http:// is rejected even if explicitly listed: tickets would be
+        # exposed in plaintext in transit and in proxy/server access logs.
+        self.auth.settings.cas_allowed_services = [
+            "http://internal.example/",
+            "http://internal.example/app",
+        ]
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("http://internal.example/")
+        )
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("http://internal.example/app")
+        )
+        # Non-http schemes are also rejected.
+        self.auth.settings.cas_allowed_services = ["javascript:alert(1)"]
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("javascript:alert(1)")
+        )
+        self.assertFalse(self.auth._is_allowed_cas_service("file:///etc/passwd"))
+        self.assertFalse(self.auth._is_allowed_cas_service("ftp://example/"))
+
+    def test_rejects_control_characters(self):
+        # CRLF / NUL must not be accepted — browsers strip them from
+        # Location headers and the residual prefix would bypass the check.
+        self.auth.settings.cas_allowed_services = ["https://ok.example/"]
+        self.assertFalse(
+            self.auth._is_allowed_cas_service(
+                "https://ok.example/\r\nLocation: https://evil/"
+            )
+        )
+        self.assertFalse(
+            self.auth._is_allowed_cas_service("https://ok.example/\x00")
+        )
+
+    def test_cas_login_blocks_disallowed_service(self):
+        # Reproduces the original bug: a request to cas/login with an
+        # attacker-controlled service URL must be rejected, not redirected.
+        self.request.vars.service = "https://attacker.example/"
+        with self.assertRaises(HTTP) as ctx:
+            self.auth.cas_login()
+        self.assertEqual(ctx.exception.status, 403)
+
+    def test_cas_login_does_not_poison_session_with_invalid_service(self):
+        # An invalid request.vars.service must not overwrite a previously
+        # stored session._cas_service value.
+        self.current.session._cas_service = "https://cas.example.com/legit"
+        self.request.vars.service = "https://attacker.example/"
+        with self.assertRaises(HTTP):
+            self.auth.cas_login()
+        self.assertEqual(
+            self.current.session._cas_service, "https://cas.example.com/legit"
+        )
+
+    def test_cas_validate_refuses_ticket_for_disallowed_service(self):
+        user_id = self.db.auth_user.insert(
+            username="alice", email="alice@example.com", password="x"
+        )
+        self.db.commit()
+        table = self.auth.table_cas()
+        ticket = "ST-test-ticket-1234567890"
+        table.insert(
+            service="https://attacker.example/",
+            user_id=user_id,
+            ticket=ticket,
+            created_on=self.request.now,
+            renew=False,
+        )
+        self.db.commit()
+        self.request.vars.ticket = ticket
+        with self.assertRaises(HTTP) as ctx:
+            self.auth.cas_validate(version=2)
+        # cas_validate always returns 200 with an XML body. Failure is signalled
+        # in the body, not the status code.
+        self.assertEqual(ctx.exception.status, 200)
+        body = ctx.exception.body
+        if isinstance(body, bytes):
+            body = body.decode("utf8")
+        self.assertIn("authenticationFailure", body)
+        # And the stored ticket must have been purged.
+        self.assertIsNone(table(ticket=ticket))

@@ -527,8 +527,10 @@ def executor(retq, task, outq):
             globals().update(_env)
             result = _function(*task.args, **task.vars)
         else:
-            # for testing purpose only
-            result = eval(task.function)(*task.args, **task.vars)
+            raise ValueError(
+                "task.application_name is required; cannot execute task '%s' "
+                "without an app context" % task.function
+            )
         dump_result = dumps(result, ensure_ascii=False)
         if len(dump_result) >= 1024:
             fd, temp_path = tempfile.mkstemp(suffix=".w2p_sched")
