@@ -88,8 +88,12 @@ class TestAppAdmin(unittest.TestCase):
 
     def run_view_file_stream(self):
         view_path = os.path.join(self.env["request"].folder, "views", "appadmin.html")
-        self.env["response"].view = open_file(view_path, "r")
-        return run_view_in(self.env)
+        view_file = open_file(view_path, "r")
+        self.env["response"].view = view_file
+        try:
+            return run_view_in(self.env)
+        finally:
+            view_file.close()
 
     def assertUnsafe(self, expr):
         """Assert that evaluating expr raises a ValueError (unsafe)."""
@@ -298,6 +302,52 @@ class TestAppAdmin(unittest.TestCase):
                         "Should block path traversal")
         self.assertFalse(is_path_allowed('/tmp/malicious'),
                         "Should block temp directory access")
+
+    def test_admin_file_manager_boundaries(self):
+        """Test that admin file manager enforces app boundaries."""
+        from gluon.admin import join_app_path
+        from gluon.globals import Request
+        from gluon.http import HTTP
+        request = Request(env={})
+        request.folder = os.path.abspath('applications/admin')
+
+        web2py_apps_root = os.path.abspath('applications')
+        app_root = os.path.join(web2py_apps_root, "welcome")
+
+        base = os.path.join(app_root, "views")
+        res = join_app_path(request, "welcome", base, "default/index.html")
+        self.assertTrue(res.endswith(os.path.join("welcome", "views", "default", "index.html")))
+
+        static_base = os.path.join(app_root, "static")
+        static_res = join_app_path(request, "welcome", static_base, "js/app.js")
+        self.assertTrue(static_res.endswith(os.path.join("welcome", "static", "js", "app.js")))
+
+        self.assertRaises(
+            HTTP,
+            join_app_path,
+            request,
+            "welcome",
+            os.path.join(app_root, "views"),
+            "../controllers/default.py"
+        )
+
+        self.assertRaises(
+            HTTP,
+            join_app_path,
+            request,
+            "welcome",
+            os.path.join(app_root, "static"),
+            "../../admin/controllers/default.py"
+        )
+
+        self.assertRaises(
+            HTTP,
+            join_app_path,
+            request,
+            "welcome",
+            os.path.join(app_root, "static"),
+            "/tmp/pwn.py"
+        )
 
     def test_safe_eval_expression_blocks_function_calls(self):
         """Test that safe_eval_expression blocks arbitrary function calls (RCE)"""

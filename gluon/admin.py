@@ -32,6 +32,7 @@ from gluon.fileutils import (
     w2p_unpack_plugin,
     write_file,
 )
+from gluon.http import HTTP
 from gluon.restricted import RestrictedError
 from gluon.settings import global_settings
 
@@ -71,6 +72,26 @@ def apath(path="", r=None):
         opath = up(opath)
         path = path[3:]
     return os.path.join(opath, path).replace("\\", "/")
+
+
+def is_within_root(path, root):
+    return path == root or path.startswith(root + os.sep)
+
+
+def check_app_path(request, app, path):
+    app_root = os.path.abspath(apath(app, r=request))
+    path = os.path.abspath(os.path.normpath(path))
+    if not is_within_root(path, app_root):
+        raise HTTP(403)
+    return path
+
+
+def join_app_path(request, app, base, *paths):
+    base = check_app_path(request, app, base)
+    path = os.path.abspath(os.path.normpath(os.path.join(base, *paths)))
+    if not is_within_root(path, base):
+        raise HTTP(403)
+    return path
 
 
 def app_pack(app, request, raise_ex=False, filenames=None):

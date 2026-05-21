@@ -266,10 +266,7 @@ def copystream_progress(request, chunk_size=10**5):
         size = int(env["CONTENT_LENGTH"])
     except ValueError:
         raise HTTP(400, "Invalid Content-Length header")
-    try:  # Android requires this
-        dest = tempfile.NamedTemporaryFile()
-    except NotImplementedError:  # and GAE this
-        dest = tempfile.TemporaryFile()
+    dest = tempfile.TemporaryFile()
     if "X-Progress-ID" not in request.get_vars:
         copystream(source, dest, size, chunk_size)
         return dest
@@ -850,9 +847,9 @@ class Response(Storage):
                     tmpl = template_mapping.get(ext)
                 if tmpl:
                     if self._csp_enabled:
-                        s.append(tmpl % (self.nonce, item))
+                        s.append(tmpl % (self.nonce, xmlescape(item)))
                     else:
-                        s.append(tmpl % item)
+                        s.append(tmpl % xmlescape(item))
             elif isinstance(item, (list, tuple)):
                 f = item[0]
                 if self._csp_enabled:
@@ -864,9 +861,14 @@ class Response(Storage):
                         if isinstance(item[1], tuple):
                             s.append(tmpl % ((self.nonce,) + item[1]))
                         else:
-                            s.append(tmpl % (self.nonce, item[1]))
+                            value = item[1] if f.endswith(":inline") else xmlescape(item[1])
+                            s.append(tmpl % (self.nonce, value))
                     else:
-                        s.append(tmpl % item[1])
+                        if isinstance(item[1], tuple):
+                            s.append(tmpl % item[1])
+                        else:
+                            value = item[1] if f.endswith(":inline") else xmlescape(item[1])
+                            s.append(tmpl % value)
 
         s = []
         for item in files:

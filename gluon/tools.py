@@ -1818,6 +1818,29 @@ class Auth(AuthAPI):
         if vars is None:
             vars = {}
         host = scheme and self.settings.host
+        if scheme and not host:
+            # Absolute URL requested but no host was pinned in
+            # settings.host. Falling through to URL() would derive the
+            # host from request.env.http_host, which is taken verbatim
+            # from the client-supplied Host: header. This is the classic
+            # password-reset token-leak primitive (CWE-640): an attacker
+            # submits the reset form with `Host: attacker.com` and the
+            # victim is emailed `http://attacker.com/.../reset_password
+            # ?key=<TOKEN>`; the token leaks on click. Require an
+            # explicit allowlist instead.
+            host_names = self.settings.host_names
+            if host_names:
+                host = self.select_host(
+                    current.request.env.http_host, host_names
+                )
+            else:
+                raise HTTP(
+                    500,
+                    "Auth.url(scheme=True) requires auth.settings.host or "
+                    "host_names to be configured; refusing to derive the "
+                    "host from the request Host header.",
+                    web2py_error="absolute Auth URL without trusted host",
+                )
         return URL(
             c=self.settings.controller,
             f=f,
@@ -1964,7 +1987,12 @@ class Auth(AuthAPI):
             label_separator=current.response.form_label_separator,
             two_factor_methods=[],
             two_factor_onvalidation=[],
-            host=host,
+            # Only pin settings.host when the app supplied an allowlist
+            # (host_names); otherwise leave it unset so that Auth.url()
+            # refuses to mint absolute URLs from an unverified request
+            # Host header. See Auth.url() for the rationale.
+            host=host if host_names else None,
+            host_names=host_names,
         )
         settings.lock_keys = True
         # ## these are messages that can be customized
@@ -6065,7 +6093,7 @@ class Service(object):
                 return ""
             else:
                 return "[" + ",".join(retlist) + "]"
-        methods = self.jsonrpc2_procedures
+        methods = dict(self.jsonrpc2_procedures)
         methods.update(self.jsonrpc_procedures)
 
         try:
