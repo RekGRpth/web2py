@@ -35,16 +35,23 @@ from gluon.fileutils import (
 from gluon.http import HTTP
 from gluon.restricted import RestrictedError
 from gluon.settings import global_settings
+from gluon.utils import safe_path_join
 
 
 def _safe_extract_path(base_dir, member_name):
     """Return an absolute safe extraction path inside base_dir."""
-    target = os.path.normpath(os.path.join(base_dir, member_name))
-    root = os.path.abspath(base_dir)
-    target_abspath = os.path.abspath(target)
-    if not (target_abspath == root or target_abspath.startswith(root + os.sep)):
+    try:
+        return safe_path_join(base_dir, member_name)
+    except ValueError:
         raise RuntimeError("Attempted path traversal in zip file")
-    return target_abspath
+
+
+def safe_deposit_path(request, filename):
+    """Return a safe path for a temporary file in the deposit folder."""
+    basename = os.path.basename(filename)
+    if basename != filename or basename in ("", os.curdir, os.pardir):
+        raise RuntimeError("Invalid upload filename")
+    return apath("../deposit/%s" % basename, request)
 
 
 # TODO: move into add_path_first
@@ -348,9 +355,10 @@ def plugin_install(app, fobj, request, filename):
         or `False` on failure
 
     """
-    upname = apath("../deposit/%s" % filename, request)
+    upname = None
 
     try:
+        upname = safe_deposit_path(request, filename)
         with open(upname, "wb") as appfp:
             copyfileobj(fobj, appfp, 4194304)  # 4 MB buffer
         path = apath(app, request)
@@ -358,7 +366,8 @@ def plugin_install(app, fobj, request, filename):
         fix_newlines(path)
         return upname
     except Exception:
-        os.unlink(upname)
+        if upname and os.path.exists(upname):
+            os.unlink(upname)
         return False
 
 

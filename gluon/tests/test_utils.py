@@ -4,6 +4,8 @@
 """ Unit tests for utils.py """
 
 import pickle
+import os
+import tempfile
 import unittest
 from hashlib import md5
 
@@ -164,6 +166,53 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(wrong3, None)
         wrong4 = secure_loads(b"abc", "a", "b")
         self.assertEqual(wrong4, None)
+
+    def test_secure_loads_deprecated_blocks_rce_payload_by_default(self):
+        """Legacy signed data must use the restricted unpickler by default."""
+        sentinel_fd, sentinel_path = tempfile.mkstemp(prefix="web2py_legacy_rce_")
+        os.close(sentinel_fd)
+        os.remove(sentinel_path)
+
+        class Exploit:
+            def __reduce__(self):
+                return (open, (sentinel_path, "w"))
+
+        testkey = "mysecret"
+        secured = gluon.utils.secure_dumps_deprecated(Exploit(), testkey)
+        self.assertEqual(secured.count(b":"), 1)
+
+        try:
+            self.assertIsNone(secure_loads(secured, testkey))
+            self.assertFalse(os.path.exists(sentinel_path))
+        finally:
+            if os.path.exists(sentinel_path):
+                os.remove(sentinel_path)
+
+    def test_secure_loads_deprecated_can_opt_in_to_legacy_pickle(self):
+        """Callers that explicitly request old behavior keep compatibility."""
+        testobj = {"a": 1, "b": 2}
+        testkey = "mysecret"
+        secured = gluon.utils.secure_dumps_deprecated(testobj, testkey)
+        self.assertEqual(secured.count(b":"), 1)
+
+        self.assertEqual(
+            testobj,
+            secure_loads(secured, testkey, safe_unpickle=False),
+        )
+
+    def test_secure_loads_deprecated_handles_compressed_payload(self):
+        """Legacy compressed data round-trips through the restricted unpickler."""
+        testobj = {"a": 1, "b": 2}
+        testkey = "mysecret"
+        secured = gluon.utils.secure_dumps_deprecated(
+            testobj, testkey, compression_level=9
+        )
+        self.assertEqual(secured.count(b":"), 1)
+
+        self.assertEqual(
+            testobj,
+            secure_loads(secured, testkey, compression_level=9),
+        )
 
     # TODO: def test_initialize_urandom(self):
 

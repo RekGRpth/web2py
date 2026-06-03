@@ -36,6 +36,24 @@ def setup_clean_session():
     return current
 
 
+def setup_clean_cookie_session():
+    request = Request(env={})
+    request.application = "a"
+    request.controller = "c"
+    request.function = "f"
+    request.folder = "applications/admin"
+    response = Response()
+    session = Session()
+
+    from gluon.globals import current
+
+    current.request = request
+    current.response = response
+    current.session = session
+    session.connect(request, response, cookie_key="secret")
+    return current
+
+
 class testRequest(unittest.TestCase):
     def setUp(self):
         from gluon.globals import current
@@ -97,6 +115,8 @@ class testResponse(unittest.TestCase):
             raise self.failureException(msg)
 
     def test_include_files(self):
+        setup_clean_session()
+
         def return_includes(response, extensions=None):
             response.include_files(extensions)
             return response.body.getvalue()
@@ -230,6 +250,8 @@ class testResponse(unittest.TestCase):
         )
 
     def test_include_files_escapes_url_attributes(self):
+        setup_clean_session()
+
         def return_includes(response):
             response.include_files()
             return response.body.getvalue()
@@ -255,6 +277,24 @@ class testResponse(unittest.TestCase):
         response = Response()
         response.enable_csp()
         response.files.append(("js", malicious))
+        content = return_includes(response)
+        self.assertIn('nonce="%s"' % response.nonce, content)
+        self.assertIn(
+            "https://cdn.example.com/app.js?x=&quot; onerror=&quot;alert(1)", content
+        )
+        self.assertNotIn('onerror="alert(1)', content)
+
+        response = Response()
+        response.files.append(("js", (malicious,)))
+        content = return_includes(response)
+        self.assertIn(
+            "https://cdn.example.com/app.js?x=&quot; onerror=&quot;alert(1)", content
+        )
+        self.assertNotIn('onerror="alert(1)', content)
+
+        response = Response()
+        response.enable_csp()
+        response.files.append(("js", (malicious,)))
         content = return_includes(response)
         self.assertIn('nonce="%s"' % response.nonce, content)
         self.assertIn(
@@ -430,6 +470,49 @@ class testResponse(unittest.TestCase):
         cookie = str(current.response.cookies)
         self.assertTrue("samesite=strict" in cookie.lower())
 
+    def test_cookie_session_data_cookie_gets_security_attributes(self):
+        current = setup_clean_cookie_session()
+        current.session.user_id = 1
+
+        self.assertTrue(
+            current.session._try_store_in_cookie_or_file(
+                current.request, current.response
+            )
+        )
+        current.session._fixup_before_save()
+
+        cookie = str(
+            current.response.cookies[current.response.session_data_name]
+        ).lower()
+        self.assertIn("httponly", cookie)
+        self.assertIn("samesite=lax", cookie)
+
+    def test_cookie_session_data_cookie_gets_secure_attribute(self):
+        current = setup_clean_cookie_session()
+        current.session.user_id = 1
+        current.session.secure()
+
+        current.session._try_store_in_cookie_or_file(current.request, current.response)
+        current.session._fixup_before_save()
+
+        cookie = str(
+            current.response.cookies[current.response.session_data_name]
+        ).lower()
+        self.assertIn("secure", cookie)
+
+    def test_forget_deletes_session_id_cookie(self):
+        current = setup_clean_session()
+        current.session._fixup_before_save()
+        self.assertIn(
+            current.response.session_id_name, current.response.cookies
+        )
+
+        current.session.forget()
+        current.session._fixup_before_save()
+        self.assertNotIn(
+            current.response.session_id_name, current.response.cookies
+        )
+
     def test_stream_attachment_filename_encodes_quote(self):
         response = Response()
         request = Request(env={})
@@ -528,6 +611,24 @@ class testResponse(unittest.TestCase):
             self.assertEqual(ctx.exception.headers.get("Content-Range"), "bytes 0-4/10")
             self.assertEqual(ctx.exception.headers.get("Content-Length"), "5")
             b"".join(ctx.exception.body)  # exhaust the streamer so its finally: stream.close() runs cleanly
+
+            # Suffix byte ranges request the last N bytes.
+            request.env.http_range = "bytes=-4"
+            with self.assertRaises(HTTP) as ctx:
+                stream_file_or_304_or_206(path, request=request, headers={})
+            self.assertEqual(ctx.exception.status, 206)
+            self.assertEqual(ctx.exception.headers.get("Content-Range"), "bytes 6-9/10")
+            self.assertEqual(ctx.exception.headers.get("Content-Length"), "4")
+            self.assertEqual(b"".join(ctx.exception.body), b"6789")
+
+            # A suffix larger than the file is clamped to the whole file.
+            request.env.http_range = "bytes=-9999"
+            with self.assertRaises(HTTP) as ctx:
+                stream_file_or_304_or_206(path, request=request, headers={})
+            self.assertEqual(ctx.exception.status, 206)
+            self.assertEqual(ctx.exception.headers.get("Content-Range"), "bytes 0-9/10")
+            self.assertEqual(ctx.exception.headers.get("Content-Length"), "10")
+            self.assertEqual(b"".join(ctx.exception.body), b"0123456789")
 
         finally:
             try:

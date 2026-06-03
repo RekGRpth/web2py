@@ -62,7 +62,6 @@ from io import BytesIO, StringIO
 from pickle import DICT, EMPTY_DICT, MARK, Pickler
 from urllib import parse as urlparse
 from urllib.parse import parse_qs
-from urllib.parse import quote as urllib_quote
 
 from pydal.contrib import portalocker
 from pydal.utils import utcnow
@@ -75,7 +74,7 @@ from gluon.restricted import safe_load, safe_loads
 from gluon.contrib.multipart import MultipartParser, ParserError, parse_options_header
 from gluon.fileutils import up
 from gluon.html import PRE, TABLE, TR, URL, xmlescape
-from gluon.http import HTTP, redirect
+from gluon.http import HTTP, content_disposition_header, redirect
 from gluon.serializers import custom_json, json
 from gluon.settings import global_settings
 from gluon.storage import List, Storage
@@ -164,16 +163,6 @@ CSP_STANDARD_DIRECTIVES = frozenset(
         "worker-src",
     )
 )
-
-
-def _content_disposition_filename(filename):
-    if filename is None:
-        filename = ""
-    # Keep historical semantics for normal values while ensuring dangerous
-    # bytes are encoded before insertion in a quoted header parameter.
-    if isinstance(filename, bytes):
-        return urllib_quote(filename, safe=b"")
-    return urllib_quote(str(filename), safe="")
 
 
 # IMPORTANT:
@@ -830,6 +819,13 @@ class Response(Storage):
                         files[i] = call_minify()
 
         def static_map(s, item):
+            def template_values(file_type, values):
+                if not isinstance(values, tuple):
+                    values = (values,)
+                if not file_type.endswith(":inline"):
+                    values = tuple(xmlescape(value) for value in values)
+                return values
+
             if isinstance(item, str):
                 f = item.lower().split("?")[0]
                 ext = f.rpartition(".")[2]
@@ -858,17 +854,9 @@ class Response(Storage):
                     tmpl = template_mapping.get(f)
                 if tmpl:
                     if self._csp_enabled:
-                        if isinstance(item[1], tuple):
-                            s.append(tmpl % ((self.nonce,) + item[1]))
-                        else:
-                            value = item[1] if f.endswith(":inline") else xmlescape(item[1])
-                            s.append(tmpl % (self.nonce, value))
+                        s.append(tmpl % ((self.nonce,) + template_values(f, item[1])))
                     else:
-                        if isinstance(item[1], tuple):
-                            s.append(tmpl % item[1])
-                        else:
-                            value = item[1] if f.endswith(":inline") else xmlescape(item[1])
-                            s.append(tmpl % value)
+                        s.append(tmpl % template_values(f, item[1]))
 
         s = []
         for item in files:
@@ -913,8 +901,7 @@ class Response(Storage):
         # for attachment settings and backward compatibility
         keys = [item.lower() for item in headers]
         if attachment:
-            attname = _content_disposition_filename(filename)
-            headers["Content-Disposition"] = 'attachment; filename="%s"' % attname
+            headers["Content-Disposition"] = content_disposition_header(filename)
 
         if not request:
             request = current.request
@@ -1002,11 +989,8 @@ class Response(Storage):
         if download_filename is None:
             download_filename = filename
         if attachment:
-            # Browsers still don't have a simple uniform way to have non ascii
-            # characters in the filename so for now we are percent encoding it
-            download_filename = _content_disposition_filename(download_filename)
-            headers["Content-Disposition"] = (
-                'attachment; filename="%s"' % download_filename
+            headers["Content-Disposition"] = content_disposition_header(
+                download_filename
             )
         return self.stream(stream, chunk_size=chunk_size, request=request)
 
@@ -1465,15 +1449,7 @@ class Session(Storage):
             else:
                 response.session_new = True
 
-    def _fixup_before_save(self):
-        response = current.response
-        rcookies = response.cookies
-        scookies = rcookies.get(response.session_id_name)
-        if not scookies:
-            return
-        if self._forget:
-            del rcookies[response.session_id_name]
-            return
+    def _set_cookie_security_attrs(self, scookies):
         if self.get("httponly_cookies", True):
             scookies["HttpOnly"] = True
         if self._secure:
@@ -1488,6 +1464,20 @@ class Session(Storage):
                 # Python version 3.7 and lower needs this
                 Cookie.Morsel._reserved["samesite"] = "SameSite"
             scookies["samesite"] = self._same_site
+
+    def _fixup_before_save(self):
+        response = current.response
+        rcookies = response.cookies
+        scookies = rcookies.get(response.session_id_name)
+        if self._forget:
+            if scookies:
+                del rcookies[response.session_id_name]
+            return
+        if scookies:
+            self._set_cookie_security_attrs(scookies)
+        data_cookie = rcookies.get(response.session_data_name)
+        if data_cookie:
+            self._set_cookie_security_attrs(data_cookie)
 
     def clear_session_cookies(self):
         request = current.request
