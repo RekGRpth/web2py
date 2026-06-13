@@ -25,8 +25,8 @@ from gluon.globals import Request, Response, Session
 from gluon.http import HTTP
 from gluon.languages import TranslatorFactory
 from gluon.storage import Storage
-from gluon.tools import (Auth, Expose, Mail, Recaptcha2, csv_safe, prettydate,
-                         prevent_open_redirect)
+from gluon.tools import (Auth, Expose, Mail, Recaptcha2, csv_safe,
+                         csv_safe_text, prettydate, prevent_open_redirect)
 
 IS_IMAP = "imap" in DEFAULT_URI
 
@@ -1639,6 +1639,34 @@ class TestService(unittest.TestCase):
                     "unescaped formula cell: %r" % cell,
                 )
 
+    def test_serve_csv_rows_branch_neutralizes_formula_injection(self):
+        # a @service.csv function may return DAL Rows; those go through
+        # pydal's export_to_csv_file() and must be defused on the serialized
+        # text, while genuine numeric columns keep their value (not '-5).
+        db = DAL(DEFAULT_URI, check_reserved=["all"])
+        try:
+            db.define_table("evil_rows", Field("name"), Field("amount", "integer"))
+            db.evil_rows.insert(name="=cmd|'/c calc'!A1", amount=-5)
+            db.commit()
+
+            service = tools.Service()
+
+            @service.csv
+            def evil():
+                return db(db.evil_rows).select()
+
+            current.request = Storage(args=["evil"], vars=Storage())
+            current.response = Storage(headers={})
+
+            out = service.serve_csv()
+
+            self.assertIn("'=cmd", out)  # string formula neutralized
+            self.assertIn(",-5", out)  # genuine number preserved
+            self.assertNotIn("'-5", out)
+        finally:
+            db.evil_rows.drop()
+            db.close()
+
 
 # TODO: class TestPluginManager(unittest.TestCase):
 
@@ -1665,6 +1693,26 @@ class TestToolsFunctions(unittest.TestCase):
         self.assertEqual(csv_safe(-5), -5)
         self.assertEqual(csv_safe(3.14), 3.14)
         self.assertEqual(csv_safe(None), None)
+
+    def test_csv_safe_text_neutralizes_serialized_rows(self):
+        # text emitted by a writer we do not control (e.g. pydal's
+        # export_to_csv_file) is re-parsed and dangerous cells get quoted
+        src = "id,name\r\n1,=cmd|'/C calc'!A0\r\n2,@SUM(1+1)\r\n"
+        out = csv_safe_text(src)
+        self.assertIn("'=cmd|'/C calc'!A0", out)
+        self.assertIn("'@SUM(1+1)", out)
+        self.assertNotIn(",=cmd", out)
+        # genuine numbers keep their type/meaning, structure is preserved
+        out = csv_safe_text("a,b\r\n-5,3.14\r\n")
+        self.assertIn("-5,3.14", out)
+        self.assertNotIn("'-5", out)
+        # a value carrying the delimiter still round-trips (quoting preserved)
+        self.assertIn('"x, y"', csv_safe_text('h\r\n"x, y"\r\n'))
+        # TSV uses a tab delimiter
+        self.assertIn("\t'=evil", csv_safe_text("h\tk\r\nok\t=evil\r\n", delimiter="\t"))
+        # empty / falsy input is returned untouched
+        self.assertEqual(csv_safe_text(""), "")
+        self.assertEqual(csv_safe_text(None), None)
 
     def test_prettydate(self):
         # plain
