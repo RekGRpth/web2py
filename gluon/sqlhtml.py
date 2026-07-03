@@ -2911,6 +2911,15 @@ class SQLFORM(FORM):
                             f.tablename = table._tablename
                             fields.append(f)
                             columns.append(f)
+        # the grid only offers sort links for readable, non-virtual columns;
+        # request.vars.order must be constrained to that same set so a crafted
+        # value cannot order by (and leak the ordering of) an undisplayed column
+        # or reference an unrelated table and raise an unhandled 500
+        sortable_fields = set(
+            str(f)
+            for f in columns
+            if isinstance(f, Field) and not isinstance(f, Field.Virtual) and f.readable
+        )
         if not field_id:
             if groupby is None:
                 field_id = tables[0]._id
@@ -3139,7 +3148,7 @@ class SQLFORM(FORM):
         if export_type:
             order = request.vars.order or ""
             if sortable:
-                if order:
+                if order and order.split("~")[-1] in sortable_fields:
                     otablename, ofieldname = order.split("~")[-1].split(".", 1)
                     sort_field = db[otablename][ofieldname]
                     orderby = sort_field if order[:1] != "~" else ~sort_field
@@ -3319,7 +3328,7 @@ class SQLFORM(FORM):
         order = request.vars.order or ""
         asc_icon, desc_icon = sorter_icons
         if sortable:
-            if order:
+            if order and order.split("~")[-1] in sortable_fields:
                 otablename, ofieldname = order.split("~")[-1].split(".", 1)
                 sort_field = db[otablename][ofieldname]
                 orderby = sort_field if order[:1] != "~" else ~sort_field
