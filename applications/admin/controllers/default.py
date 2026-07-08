@@ -141,6 +141,13 @@ def get_app(name=None):
     redirect(URL('site'))
 
 
+def get_app_file_path(name=None, filename=None, absolute=False):
+    app = get_app(name)
+    filename = filename if filename is not None else '/'.join(request.args)
+    path = abspath(filename) if absolute else apath(filename, r=request)
+    return app, filename, check_app_path(request, app, path)
+
+
 def index():
     """ Index handler """
 
@@ -554,8 +561,7 @@ def remove_compiled_app():
 
 def delete():
     """ Object delete handler """
-    app = get_app()
-    filename = '/'.join(request.args)
+    app, filename, full_path = get_app_file_path()
     sender = request.vars.sender
 
     if isinstance(sender, list):  # ## fix a problem with Vista
@@ -566,7 +572,6 @@ def delete():
 
     if dialog.accepted:
         try:
-            full_path = apath(filename, r=request)
             lineno = count_lines(safe_open(full_path, 'r').read())
             os.unlink(full_path)
             log_progress(app, 'DELETE', filename, progress=-lineno)
@@ -595,12 +600,8 @@ def enable():
 
 def peek():
     """ Visualize object code """
-    app = get_app(request.vars.app)
-    filename = '/'.join(request.args)
-    if request.vars.app:
-        path = abspath(filename)
-    else:
-        path = apath(filename, r=request)
+    app, filename, path = get_app_file_path(
+        request.vars.app, absolute=bool(request.vars.app))
     try:
         data = safe_read(path).replace('\r', '')
     except IOError:
@@ -655,7 +656,6 @@ def edit():
     """ File edit handler """
     # Load json only if it is ajax edited...
     app = get_app(request.vars.app)
-    app_path = apath(app, r=request)
     preferences = {'theme': 'web2py', 'editor': 'default', 'closetag': 'true', 'codefolding': 'false', 'tabwidth': '4', 'indentwithtabs': 'false', 'linenumbers': 'true', 'highlightline': 'true'}
     config = Config(os.path.join(request.folder, 'settings.cfg'),
                     section='editor', default_values={})
@@ -685,13 +685,9 @@ def edit():
 
     """ File edit handler """
     # Load json only if it is ajax edited...
-    app = get_app(request.vars.app)
-    filename = '/'.join(request.args)
+    app, filename, path = get_app_file_path(
+        request.vars.app, absolute=bool(request.vars.app))
     realfilename = request.args[-1]
-    if request.vars.app:
-        path = abspath(filename)
-    else:
-        path = apath(filename, r=request)
     # Try to discover the file type
     if filename[-3:] == '.py':
         filetype = 'python'
@@ -874,12 +870,14 @@ def edit():
 def todolist():
     """ Returns all TODO of the requested app
     """
-    app = request.vars.app or ''
-    app_path = apath('%(app)s' % {'app': app}, r=request)
+    app = get_app(request.vars.app or request.args(0))
     dirs = ['models', 'controllers', 'modules', 'private']
 
     def listfiles(app, dir, regexp=r'.*\.py$'):
-        files = sorted(listdir(apath('%(app)s/%(dir)s/' % {'app': app, 'dir': dir}, r=request), regexp))
+        path = check_app_path(
+            request, app,
+            apath('%(app)s/%(dir)s/' % {'app': app, 'dir': dir}, r=request))
+        files = sorted(listdir(path, regexp))
         files = [x.replace(os.path.sep, '/') for x in files if not x.endswith('.bak')]
         return files
 
@@ -924,9 +922,8 @@ def resolve():
     """
     """
 
-    filename = '/'.join(request.args)
+    app, filename, path = get_app_file_path()
     # ## check if file is not there
-    path = apath(filename, r=request)
     a = safe_read(path).split('\n')
     try:
         b = safe_read(path + '.1').split('\n')
@@ -984,10 +981,9 @@ def resolve():
 
 def edit_language():
     """ Edit language file """
-    app = get_app()
-    filename = '/'.join(request.args)
+    app, filename, path = get_app_file_path()
     response.title = request.args[-1]
-    strings = read_dict(apath(filename, r=request))
+    strings = read_dict(path)
 
     if '__corrupted__' in strings:
         form = SPAN(strings['__corrupted__'], _class='error')
@@ -1035,18 +1031,16 @@ def edit_language():
             if form.vars[name] == chr(127):
                 continue
             strs[key] = form.vars[name]
-        write_dict(apath(filename, r=request), strs)
+        write_dict(path, strs)
         session.flash = T('file saved on %(time)s', dict(time=time.ctime()))
         redirect(URL(r=request, args=request.args))
-    return dict(app=request.args[0], filename=filename, form=form)
+    return dict(app=app, filename=filename, form=form)
 
 
 def edit_plurals():
     """ Edit plurals file """
-    app = get_app()
-    filename = '/'.join(request.args)
-    plurals = read_plural_dict(
-        apath(filename, r=request))  # plural forms dictionary
+    app, filename, path = get_app_file_path()
+    plurals = read_plural_dict(path)  # plural forms dictionary
     nplurals = int(request.vars.nplurals) - 1  # plural forms quantity
     xnplurals = range(nplurals)
 
@@ -1086,11 +1080,11 @@ def edit_plurals():
                 continue
             new_plurals[key] = [form.vars[name + '_' + str(n)]
                                 for n in xnplurals]
-        write_plural_dict(apath(filename, r=request), new_plurals)
+        write_plural_dict(path, new_plurals)
         session.flash = T('file saved on %(time)s', dict(time=time.ctime()))
         redirect(URL(r=request, args=request.args, vars=dict(
             nplurals=request.vars.nplurals)))
-    return dict(app=request.args[0], filename=filename, form=form)
+    return dict(app=app, filename=filename, form=form)
 
 
 def about():
@@ -1235,8 +1229,10 @@ def design():
 
 def delete_plugin():
     """ Object delete handler """
-    app = request.args(0)
+    app = get_app()
     plugin = request.args(1)
+    if not re.compile(r'^\w+$').match(plugin or ''):
+        raise HTTP(403)
     plugin_name = 'plugin_' + plugin
 
     dialog = FORM.confirm(
@@ -1533,10 +1529,11 @@ def create_file():
 
 
 def listfiles(app, dir, regexp=r'.*\.py$'):
-    path = apath('%(app)s/%(dir)s/' % {'app': app, 'dir': dir}, r=request)
-    web2py_apps_root = os.path.abspath(up(request.folder))
-    path_abs = os.path.abspath(path)
-    if not is_within_root(path_abs, web2py_apps_root):
+    try:
+        path = check_app_path(
+            request, app,
+            apath('%(app)s/%(dir)s/' % {'app': app, 'dir': dir}, r=request))
+    except HTTP:
         return []
     files = sorted(
         listdir(path, regexp))
@@ -1551,7 +1548,7 @@ def editfile(path, file, vars={}, app=None):
 
 
 def files_menu():
-    app = request.vars.app or 'welcome'
+    app = get_app(request.vars.app or request.args(0) or 'welcome')
     dirs = [{'name': 'models', 'reg': r'.*\.py$'},
             {'name': 'controllers', 'reg': r'.*\.py$'},
             {'name': 'views', 'reg': r'[\w/\-]+(\.\w+)+$'},
@@ -2005,7 +2002,7 @@ def git_push():
 
 
 def plugins():
-    app = request.args(0)
+    app = get_app()
     from gluon.serializers import loads_json
     if not session.plugins:
         try:
@@ -2016,11 +2013,11 @@ def plugins():
         except:
             response.flash = T('Unable to download the list of plugins')
             session.plugins = []
-    return dict(plugins=session.plugins["results"], app=request.args(0))
+    return dict(plugins=session.plugins["results"], app=app)
 
 
 def install_plugin():
-    app = request.args(0)
+    app = get_app()
     source = request.vars.source
     plugin = request.vars.plugin
     if not (source and app):

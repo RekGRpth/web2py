@@ -2977,6 +2977,8 @@ class SQLFORM(FORM):
         create_form = update_form = view_form = search_form = None
 
         if create and request.args(-2) == "new":
+            if request.args[-1] not in tablenames:
+                redirect(referrer)
             table = db[request.args[-1]]
             sqlformargs = dict(
                 ignore_rw=ignore_rw, formstyle=formstyle, submit_button=T("Add {}".format(table._singular)), _class="web2py_form"
@@ -3007,6 +3009,8 @@ class SQLFORM(FORM):
             return res
 
         elif details and request.args(-3) == "view":
+            if request.args[-2] not in tablenames:
+                redirect(referrer)
             table = db[request.args[-2]]
             record = table(request.args[-1]) or redirect(referrer)
             if represent_none is not None:
@@ -3036,6 +3040,8 @@ class SQLFORM(FORM):
             res.rows = None
             return res
         elif editable and request.args(-3) == "edit":
+            if request.args[-2] not in tablenames:
+                redirect(referrer)
             table = db[request.args[-2]]
             record = table(request.args[-1]) or redirect(URL("error"))
             deletable_ = deletable(record) if callable(deletable) else deletable
@@ -3077,6 +3083,8 @@ class SQLFORM(FORM):
             res.rows = None
             return res
         elif deletable and request.args(-3) == "delete":
+            if request.args[-2] not in tablenames:
+                redirect(referrer)
             table = db[request.args[-2]]
             if not callable(deletable):
                 if ondelete:
