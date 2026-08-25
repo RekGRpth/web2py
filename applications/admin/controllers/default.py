@@ -15,7 +15,7 @@ import io
 import importlib
 
 from gluon.admin import *
-from gluon.admin import check_app_path, is_within_root, join_app_path
+from gluon.admin import check_app_path, is_within_root, join_app_path, safe_path
 from gluon.fileutils import abspath, read_file, write_file
 from gluon.http import content_disposition_header
 from gluon.restricted import safe_load, safe_loads, TicketStorage
@@ -93,14 +93,7 @@ def safe_open(a, b):
                 pass
         return tmp()
 
-    a_for_check = os.path.abspath(os.path.normpath(a))
-
-    web2py_apps_root = os.path.abspath(up(request.folder))
-    web2py_deposit_root = os.path.join(up(web2py_apps_root), 'deposit')
-
-    allowed_roots = [web2py_apps_root, web2py_deposit_root]
-    if not any(is_within_root(a_for_check, root) for root in allowed_roots):
-        raise HTTP(403)
+    a = safe_path(request, a)
 
     if 'b' in b:
         return open(a, b)
@@ -1654,7 +1647,27 @@ def errors():
                     error = safe_load(fullpath_file, allowed_classes=TicketStorage.TICKET_ALLOWED_CLASSES)
                 finally:
                     fullpath_file.close()
-            except (IOError, pickle.UnpicklingError, EOFError):
+            except (
+                IOError,
+                pickle.UnpicklingError,
+                EOFError,
+                TypeError,
+                UnicodeError,
+            ):
+                unreadable_hash = hashlib.md5(
+                    ("unreadable:" + fn).encode("utf8")
+                ).hexdigest()
+                if unreadable_hash in delete_hashes:
+                    os.unlink(fullpath)
+                else:
+                    hash2error[unreadable_hash] = dict(
+                        count=1,
+                        causer=T("Unreadable ticket"),
+                        last_line=T("Ticket could not be decoded"),
+                        hash=unreadable_hash,
+                        ticket=fn,
+                        unreadable=True,
+                    )
                 continue
 
             hash = hashlib.md5(error['traceback'].encode("utf8")).hexdigest()

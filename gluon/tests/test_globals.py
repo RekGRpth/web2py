@@ -16,8 +16,8 @@ from io import BytesIO
 
 from pydal import DAL
 
-from gluon.html import XML, URL
-from gluon.globals import Request, Response, Session
+from gluon.html import XML, URL, SCRIPT
+from gluon.globals import current, Request, Response, Session
 from gluon.settings import global_settings
 from gluon.http import HTTP
 from gluon.rewrite import regex_url_in
@@ -381,6 +381,129 @@ class testResponse(unittest.TestCase):
         self.assertIn("report-to csp-endpoint", csp)
         self.assertIn("sandbox allow-scripts allow-same-origin", csp)
         self.assertIn("upgrade-insecure-requests", csp)
+
+    def test_enable_csp_report_only_uses_the_report_only_header(self):
+        response = Response()
+        response.enable_csp(report_only=True)
+        self.assertIn("Content-Security-Policy-Report-Only", response.headers)
+        self.assertNotIn("Content-Security-Policy", response.headers)
+        csp = response.headers["Content-Security-Policy-Report-Only"]
+        self.assertIn("default-src 'self'", csp)
+        self.assertIn("'nonce-%s'" % response.nonce, csp)
+
+    def test_enable_csp_report_only_still_emits_nonces(self):
+        # report-only is only useful if the page renders the same nonces it
+        # would render under enforcement, otherwise the report describes a
+        # policy nobody intends to ship.
+        response = Response()
+        current.response = response
+        response.enable_csp(report_only=True)
+        rendered = SCRIPT("var x = 1;").xml()
+        self.assertIn('nonce="%s"' % response.nonce, rendered)
+        self.assertIn(
+            "'nonce-%s'" % response.nonce,
+            response.headers["Content-Security-Policy-Report-Only"],
+        )
+
+    def test_enable_csp_report_only_reads_its_own_existing_header(self):
+        response = Response()
+        response.headers["Content-Security-Policy-Report-Only"] = "img-src 'self'"
+        response.enable_csp(report_only=True)
+        csp = response.headers["Content-Security-Policy-Report-Only"]
+        self.assertIn("img-src 'self'", csp)
+        self.assertIn("script-src", csp)
+        self.assertNotIn("Content-Security-Policy", response.headers)
+
+    def test_enable_csp_enforcing_is_unchanged_by_default(self):
+        response = Response()
+        response.enable_csp()
+        self.assertIn("Content-Security-Policy", response.headers)
+        self.assertNotIn("Content-Security-Policy-Report-Only", response.headers)
+
+    @staticmethod
+    def _csp_directive(csp, name):
+        for directive in csp.split(";"):
+            bits = directive.split()
+            if bits and bits[0] == name:
+                return " ".join(bits[1:])
+        return None
+
+    def test_enable_csp_sets_directives_without_default_src_fallback(self):
+        # base-uri and form-action do not fall back to default-src, so a nonce
+        # policy that omits them still permits an injected <base> to retarget
+        # every relative URL, including FORM's default action="#".
+        response = Response()
+        response.enable_csp()
+        csp = response.headers["Content-Security-Policy"]
+        self.assertEqual("'self'", self._csp_directive(csp, "base-uri"))
+        self.assertEqual("'self'", self._csp_directive(csp, "form-action"))
+        self.assertEqual("'none'", self._csp_directive(csp, "object-src"))
+        self.assertEqual("'self'", self._csp_directive(csp, "default-src"))
+        self.assertEqual(
+            "'self' 'nonce-%s'" % response.nonce,
+            self._csp_directive(csp, "script-src"),
+        )
+
+    def test_enable_csp_defaults_do_not_override_caller(self):
+        response = Response()
+        response.enable_csp(base_uri="'none'", form_action="https://pay.example")
+        csp = response.headers["Content-Security-Policy"]
+        self.assertEqual("'none'", self._csp_directive(csp, "base-uri"))
+        self.assertEqual(
+            "https://pay.example", self._csp_directive(csp, "form-action")
+        )
+        # a directive the caller did not mention still gets its default
+        self.assertEqual("'none'", self._csp_directive(csp, "object-src"))
+
+    def test_enable_csp_defaults_do_not_override_existing_header(self):
+        response = Response()
+        response.headers["Content-Security-Policy"] = "base-uri https://cdn.example"
+        response.enable_csp()
+        csp = response.headers["Content-Security-Policy"]
+        # merge() appends, so a missing guard shows up as the default tacked on
+        # the end of the caller's value, not in front of it.
+        self.assertEqual(
+            "https://cdn.example", self._csp_directive(csp, "base-uri")
+        )
+        self.assertEqual("'self'", self._csp_directive(csp, "form-action"))
+
+    def test_enable_csp_directives_are_case_insensitive(self):
+        response = Response()
+        response.enable_csp(
+            **{
+                "BASE_URI": "https://cdn.example",
+                "Form_Action": "https://pay.example",
+                "OBJECT_SRC": "'self'",
+            }
+        )
+        csp = response.headers["Content-Security-Policy"]
+        self.assertEqual(
+            "https://cdn.example", self._csp_directive(csp, "base-uri")
+        )
+        self.assertEqual(
+            "https://pay.example", self._csp_directive(csp, "form-action")
+        )
+        self.assertEqual("'self'", self._csp_directive(csp, "object-src"))
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = (
+            "BASE-URI https://cdn.example; Form-Action https://pay.example; "
+            "OBJECT-SRC 'self'"
+        )
+        response.enable_csp()
+        csp = response.headers["Content-Security-Policy"]
+        self.assertEqual(
+            "https://cdn.example", self._csp_directive(csp, "base-uri")
+        )
+        self.assertEqual(
+            "https://pay.example", self._csp_directive(csp, "form-action")
+        )
+        self.assertEqual("'self'", self._csp_directive(csp, "object-src"))
+
+        response = Response()
+        response.headers["Content-Security-Policy"] = "BASE_URI https://cdn.example"
+        with self.assertRaises(ValueError):
+            response.enable_csp()
 
     def test_enable_csp_accepts_existing_policy_lists(self):
         response = Response()

@@ -9,8 +9,12 @@ Security hardening since 3.0.x. Two opt-in features are worth calling out:
   one-colon `secure_loads` payloads now honor the same flag.
 - Opt-in Content-Security-Policy: `response.enable_csp(**directives)` emits a
   per-request nonce-based CSP header (`default-src 'self'`, nonce'd
-  `script-src`/`style-src`), with directive/token validation. Use
-  `response.nonce` on inline `<script>`/`<style>` tags.
+  `script-src`/`style-src`), plus `base-uri 'self'`, `form-action 'self'` and
+  `object-src 'none'`, with directive/token validation. Use `response.nonce`
+  on inline `<script>`/`<style>` tags. `base-uri` and `form-action` do not
+  fall back to `default-src`, so they are set explicitly; pass either as a
+  keyword to override, e.g. `enable_csp(form_action="https://pay.example")`
+  for a site that posts forms off-origin.
 
 Breaking change:
 
@@ -19,6 +23,14 @@ Breaking change:
   `Host:` header. You must configure a trusted host via
   `auth.settings.host` or an allowlist in `auth.settings.host_names`;
   otherwise an `HTTP 500` is raised.
+
+The bundled `admin` application now uses CSP in report-only mode.
+`enable_csp()` accepts `report_only=True`, which sends
+`Content-Security-Policy-Report-Only` so a browser reports violations without
+blocking them. Other applications must opt in explicitly. Nonces are emitted
+in report-only mode too, so the reports describe what enforcement would do.
+admin's remaining inline `on*=` handlers and `style=` attributes are what stop
+it enforcing today.
 
 Other security fixes in this range:
 
