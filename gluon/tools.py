@@ -4728,7 +4728,10 @@ class Auth(AuthAPI):
                     )
                     if row:
                         user = row[table_user._tablename]
-            if user:
+            # a token is only as good as the account behind it: honor the
+            # same registration_key states that login_bare() refuses, so
+            # blocking or disabling a user also revokes its tokens
+            if user and not (user.registration_key or "").strip():
                 self.login_user(user)
         return self.requires(True, otherwise=otherwise)
 
