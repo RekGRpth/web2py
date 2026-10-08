@@ -3012,6 +3012,8 @@ class SQLFORM(FORM):
             if request.args[-2] not in tablenames:
                 redirect(referrer)
             table = db[request.args[-2]]
+            if dbset(table._id == request.args[-1]).isempty():
+                redirect(referrer)
             record = table(request.args[-1]) or redirect(referrer)
             if represent_none is not None:
                 for field in record.keys():
@@ -3043,6 +3045,8 @@ class SQLFORM(FORM):
             if request.args[-2] not in tablenames:
                 redirect(referrer)
             table = db[request.args[-2]]
+            if dbset(table._id == request.args[-1]).isempty():
+                redirect(referrer)
             record = table(request.args[-1]) or redirect(URL("error"))
             deletable_ = deletable(record) if callable(deletable) else deletable
             sqlformargs = dict(
@@ -3086,6 +3090,8 @@ class SQLFORM(FORM):
             if request.args[-2] not in tablenames:
                 redirect(referrer)
             table = db[request.args[-2]]
+            if dbset(table._id == request.args[-1]).isempty():
+                redirect(referrer)
             if not callable(deletable):
                 if ondelete:
                     ondelete(table, request.args[-1])
