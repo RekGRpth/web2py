@@ -195,9 +195,9 @@ class RScheduler(Scheduler):
         now = self.now()
         mybackedstatus = r_server.hgetall(status_key)
         if not mybackedstatus:
-            r_server.hmset(
+            r_server.hset(
                 status_key,
-                dict(
+                mapping=dict(
                     status=ACTIVE,
                     worker_name=self.worker_name,
                     first_heartbeat=self.dt2str(now),
@@ -216,9 +216,9 @@ class RScheduler(Scheduler):
             if mybackedstatus == DISABLED:
                 # keep sleeping
                 self.w_stats.status = DISABLED
-                r_server.hmset(
+                r_server.hset(
                     status_key,
-                    dict(
+                    mapping=dict(
                         last_heartbeat=self.dt2str(now),
                         worker_stats=dumps(self.w_stats, ensure_ascii=False),
                     )
@@ -235,9 +235,9 @@ class RScheduler(Scheduler):
                     logger.info("Asked to kill the current task")
                     self.terminate_process()
                 logger.info("........recording heartbeat (%s)", self.w_stats.status)
-                r_server.hmset(
+                r_server.hset(
                     status_key,
-                    dict(
+                    mapping=dict(
                         last_heartbeat=self.dt2str(now),
                         status=ACTIVE,
                         worker_stats=dumps(self.w_stats, ensure_ascii=False),
