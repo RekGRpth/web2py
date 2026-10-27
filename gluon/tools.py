@@ -2748,8 +2748,9 @@ class Auth(AuthAPI):
             ) and password == user[settings.passfield]:
                 self.login_user(user)
                 return user
-        else:
-            # user not in database try other login methods
+        elif not user or not (user.registration_key or "").strip():
+            # user not in database try other login methods, but never for
+            # an account that is pending, disabled or blocked
             for login_method in self.settings.login_methods:
                 if login_method != self and login_method(username, password):
                     self.user = user
@@ -2906,6 +2907,11 @@ class Auth(AuthAPI):
             # Refuse to validate a ticket whose stored service URL is no
             # longer in the allowlist (e.g. allowlist tightened after the
             # ticket was minted, or ticket forged in an older version).
+            row.delete_record()
+            row = None
+        if row and request.vars.service != row.service:
+            # A ticket is only valid for the service it was issued to, and
+            # a failed validation spends it.
             row.delete_record()
             row = None
         if row:
@@ -3235,6 +3241,9 @@ class Auth(AuthAPI):
                     user = self.get_or_create_user(
                         table_user._filter_fields(cas_user), settings.update_fields
                     )
+                    if user and (user.registration_key or "").strip():
+                        # the account is pending, disabled or blocked here
+                        raise HTTP(403, self.messages.login_disabled)
                 elif hasattr(cas, "login_form"):
                     return cas.login_form()
                 else:

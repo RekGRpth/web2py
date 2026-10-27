@@ -4,6 +4,7 @@
 """
     Unit tests for gluon.tools
 """
+import base64
 import datetime
 import io
 import json
@@ -1984,6 +1985,110 @@ class TestAuthTokenLogin(unittest.TestCase):
         self._assert_denied(self._login_with("issued-before"))
 
 
+class TestAuthAlternateLoginRegistrationKey(unittest.TestCase):
+    """
+    Regression tests for accounts authenticated by an alternate login
+    method or a central login_form. These have no local password, so the
+    registration_key check in login_bare() was skipped and a pending,
+    disabled or blocked account was still logged in.
+    """
+
+    INELIGIBLE_KEYS = ("disabled", "blocked", "pending", "verification-key")
+
+    def setUp(self):
+        self._make_env()
+        self.db = DAL(DEFAULT_URI, check_reserved=["all"])
+        auth = Auth(self.db)
+        auth.define_tables(username=True, signature=False)
+        # provisioned by an alternate login method: no local password
+        self.uid = self.db.auth_user.insert(
+            first_name="Bart",
+            last_name="Simpson",
+            username="bart",
+            email="bart@simpson.com",
+            password=None,
+            registration_key="",
+        )
+        self.db.commit()
+
+    def _make_env(self, http_authorization=None):
+        request = Request(env={})
+        request.application = "a"
+        request.controller = "c"
+        request.function = "f"
+        request.folder = "applications/admin"
+        if http_authorization:
+            request.env.http_authorization = http_authorization
+        response = Response()
+        session = Session()
+        session.connect(request, response)
+        current.request = request
+        current.response = response
+        current.session = session
+        current.T = TranslatorFactory("", "en")
+
+    def _set_registration_key(self, registration_key):
+        self.db.auth_user[self.uid].update_record(registration_key=registration_key)
+        self.db.commit()
+
+    def _auth(self):
+        auth = Auth(self.db)
+        # stands in for e.g. ldap_auth: the directory accepts the password
+        auth.settings.login_methods = [lambda username, password: True]
+        return auth
+
+    def _login_form_auth(self):
+        class LoginForm(object):
+            def get_user(self):
+                return dict(username="bart", email="bart@simpson.com")
+
+        auth = Auth(self.db)
+        auth.settings.login_form = LoginForm()
+        return auth
+
+    def test_login_bare_refuses_ineligible_registration_key(self):
+        for registration_key in self.INELIGIBLE_KEYS:
+            with self.subTest(registration_key=registration_key):
+                self._set_registration_key(registration_key)
+                self._make_env()
+                self.assertFalse(self._auth().login_bare("bart", "secret"))
+
+    def test_basic_login_refuses_ineligible_registration_key(self):
+        credentials = base64.b64encode(b"bart:secret").decode()
+        self._set_registration_key("blocked")
+        self._make_env(http_authorization="Basic " + credentials)
+        auth = self._auth()
+        auth.settings.allow_basic_login = True
+        self.assertFalse(auth.basic()[2])
+
+    def test_login_bare_still_accepts_eligible_user(self):
+        for registration_key in (None, "", "   "):
+            with self.subTest(registration_key=registration_key):
+                self._set_registration_key(registration_key)
+                self._make_env()
+                user = self._auth().login_bare("bart", "secret")
+                self.assertEqual(user.username, "bart")
+
+    def test_login_form_refuses_ineligible_registration_key(self):
+        for registration_key in self.INELIGIBLE_KEYS:
+            with self.subTest(registration_key=registration_key):
+                self._set_registration_key(registration_key)
+                self._make_env()
+                auth = self._login_form_auth()
+                with self.assertRaises(HTTP) as cm:
+                    auth.login(next="/a/c/index")
+                self.assertEqual(cm.exception.status, 403)
+                self.assertIsNone(current.session.auth)
+
+    def test_login_form_still_logs_in_eligible_user(self):
+        self._make_env()
+        auth = self._login_form_auth()
+        with self.assertRaises(HTTP) as cm:
+            auth.login(next="/a/c/index")
+        self.assertEqual(cm.exception.status, 303)
+        self.assertEqual(current.session.auth.user.username, "bart")
+
+
 class TestAuthHostHeaderPoisoning(unittest.TestCase):
     """
     Regression tests for Host-header poisoning in Auth.url(scheme=True).
@@ -3046,3 +3151,51 @@ class TestCASServiceAllowlist(unittest.TestCase):
         self.assertIn("authenticationFailure", body)
         # And the stored ticket must have been purged.
         self.assertIsNone(table(ticket=ticket))
+
+    def _cas_validate_ticket(self, service, ticket):
+        self.request.vars.clear()
+        self.request.vars.service = service
+        self.request.vars.ticket = ticket
+        with self.assertRaises(HTTP) as ctx:
+            self.auth.cas_validate(version=2)
+        body = ctx.exception.body
+        if isinstance(body, bytes):
+            body = body.decode("utf8")
+        return body
+
+    def test_cas_validate_requires_matching_service(self):
+        # A ticket issued for one relying party must not validate for another,
+        # otherwise whoever receives it can replay it to log in elsewhere.
+        user_id = self.db.auth_user.insert(
+            username="alice", email="alice@example.com", password="x"
+        )
+        table = self.auth.table_cas()
+        ticket = "ST-test-ticket-service-a"
+        table.insert(
+            service="https://cas.example.com/a/default/user/login",
+            user_id=user_id,
+            ticket=ticket,
+            created_on=self.request.now,
+            renew=False,
+        )
+        self.db.commit()
+        body = self._cas_validate_ticket(
+            "https://cas.example.com/b/default/user/login", ticket
+        )
+        self.assertIn("authenticationFailure", body)
+        self.assertNotIn("alice", body)
+        self.assertIsNone(table(ticket=ticket))
+
+        table.insert(
+            service="https://cas.example.com/a/default/user/login",
+            user_id=user_id,
+            ticket=ticket,
+            created_on=self.request.now,
+            renew=False,
+        )
+        self.db.commit()
+        body = self._cas_validate_ticket(
+            "https://cas.example.com/a/default/user/login", ticket
+        )
+        self.assertIn("authenticationSuccess", body)
+        self.assertIn("alice", body)
